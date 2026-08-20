@@ -34,7 +34,10 @@ RESULTS_TABLES = PROJECT_ROOT / "results" / "tables"
 EVENT_COL = "heart_attack_or_stroke_occurred"
 TIME_COL = "time_to_event_or_censoring"
 SPLITS = ["train", "val", "test"]
-HORIZON_YEARS = 10.0
+# Integer years 1-10 — matches the dataset's own time resolution. Needed for Stage 7's
+# integrated Brier score, which requires survival probabilities across a range, not one point
+# (patched in when building Stage 7, same as Stage 4's equivalent patch; see journal).
+EVAL_TIME_GRID = list(range(1, 11))
 RANDOM_STATE = 42
 
 RSF_GRID = [
@@ -72,11 +75,11 @@ def load_selected_features(sex_label: str) -> list:
     return sorted(summary.loc[summary["final_selected_feature_set"], "predictor"].tolist())
 
 
-def survival_at_horizon(model, X: pd.DataFrame, horizon: float = HORIZON_YEARS) -> np.ndarray:
-    """Same rationale as Stage 4's helper of the same name: §8 needs 1 - S(horizon|X) per
-    patient for Brier score/calibration, not just a risk score."""
+def survival_curve_at_grid(model, X: pd.DataFrame, times=EVAL_TIME_GRID) -> dict:
+    """Same rationale as Stage 4's helper of the same name: Stage 7's integrated Brier score
+    needs survival probability at multiple time points, not just one."""
     step_functions = model.predict_survival_function(X)
-    return np.array([fn(horizon) for fn in step_functions])
+    return {t: np.array([fn(t) for fn in step_functions]) for t in times}
 
 
 def tune_and_fit(model_cls, grid: list, X_train, y_train, X_val, y_val, sex_label: str,
@@ -120,25 +123,29 @@ def run_sex_pipeline(sex_label: str) -> None:
     for part in SPLITS:
         df = splits[part]
         rsf_scores = rsf_model.predict(X[part])
-        rsf_surv_10y = survival_at_horizon(rsf_model, X[part])
+        rsf_curve = survival_curve_at_grid(rsf_model, X[part])
         gbsa_scores = gbsa_model.predict(X[part])
-        gbsa_surv_10y = survival_at_horizon(gbsa_model, X[part])
-        rows.append(pd.DataFrame({
+        gbsa_curve = survival_curve_at_grid(gbsa_model, X[part])
+        row_data = {
             "patient_id": df["patient_id"],
             "split": part,
             TIME_COL: df[TIME_COL],
             EVENT_COL: df[EVENT_COL],
             "rsf_risk_score": rsf_scores,
-            "rsf_survival_at_10y": rsf_surv_10y,
             "gbsa_risk_score": gbsa_scores,
-            "gbsa_survival_at_10y": gbsa_surv_10y,
-        }))
+        }
+        for t in EVAL_TIME_GRID:
+            row_data[f"rsf_survival_at_{t}y"] = rsf_curve[t]
+            row_data[f"gbsa_survival_at_{t}y"] = gbsa_curve[t]
+        rows.append(pd.DataFrame(row_data))
     predictions = pd.concat(rows, ignore_index=True)
 
     for col in ["rsf_risk_score", "gbsa_risk_score"]:
         assert predictions[col].notna().all(), f"[{sex_label}] NaN values in {col}"
-    for col in ["rsf_survival_at_10y", "gbsa_survival_at_10y"]:
-        assert predictions[col].between(0, 1).all(), f"[{sex_label}] {col} outside [0, 1]"
+    for t in EVAL_TIME_GRID:
+        for prefix in ["rsf", "gbsa"]:
+            col = f"{prefix}_survival_at_{t}y"
+            assert predictions[col].between(0, 1).all(), f"[{sex_label}] {col} outside [0, 1]"
 
     test_mask = predictions["split"] == "test"
     test_rsf_cindex = concordance_index_censored(

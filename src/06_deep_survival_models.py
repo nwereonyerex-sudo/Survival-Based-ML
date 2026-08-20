@@ -43,6 +43,10 @@ EVENT_COL = "heart_attack_or_stroke_occurred"
 TIME_COL = "time_to_event_or_censoring"
 SPLITS = ["train", "val", "test"]
 HORIZON_YEARS = 10.0
+# Integer years 1-10 — matches the dataset's own time resolution and DeepHit's own
+# num_durations grid. Needed for Stage 7's integrated Brier score, which requires survival
+# probabilities across a range, not one point (patched in when building Stage 7; see journal).
+EVAL_TIME_GRID = list(range(1, 11))
 RANDOM_STATE = 42
 NUM_DURATIONS = 10
 
@@ -163,6 +167,12 @@ def survival_at_horizon_from_df(surv_df: pd.DataFrame, horizon: float = HORIZON_
     return at_or_before.iloc[-1].values
 
 
+def survival_curve_at_grid_from_df(surv_df: pd.DataFrame, times=EVAL_TIME_GRID) -> dict:
+    """Same rationale as Stages 4-5's `survival_curve_at_grid`: Stage 7's integrated Brier
+    score needs survival probability at multiple time points, not just one."""
+    return {t: survival_at_horizon_from_df(surv_df, horizon=t) for t in times}
+
+
 def run_sex_pipeline(sex_label: str) -> None:
     print(f"\n--- {sex_label.capitalize()} cohort ---")
     splits = {part: load_split(sex_label, part) for part in SPLITS}
@@ -179,28 +189,32 @@ def run_sex_pipeline(sex_label: str) -> None:
         df = splits[part]
         deepsurv_scores = deepsurv_model.predict(X[part]).flatten()
         deepsurv_surv_df = deepsurv_model.predict_surv_df(X[part])
-        deepsurv_surv_10y = survival_at_horizon_from_df(deepsurv_surv_df)
+        deepsurv_curve = survival_curve_at_grid_from_df(deepsurv_surv_df)
 
         deephit_surv_df = deephit_model.predict_surv_df(X[part])
-        deephit_surv_10y = survival_at_horizon_from_df(deephit_surv_df)
-        deephit_scores = 1.0 - deephit_surv_10y
+        deephit_curve = survival_curve_at_grid_from_df(deephit_surv_df)
+        deephit_scores = 1.0 - deephit_curve[HORIZON_YEARS]
 
-        rows.append(pd.DataFrame({
+        row_data = {
             "patient_id": df["patient_id"],
             "split": part,
             TIME_COL: df[TIME_COL],
             EVENT_COL: df[EVENT_COL],
             "deepsurv_risk_score": deepsurv_scores,
-            "deepsurv_survival_at_10y": deepsurv_surv_10y,
             "deephit_risk_score": deephit_scores,
-            "deephit_survival_at_10y": deephit_surv_10y,
-        }))
+        }
+        for t in EVAL_TIME_GRID:
+            row_data[f"deepsurv_survival_at_{t}y"] = deepsurv_curve[t]
+            row_data[f"deephit_survival_at_{t}y"] = deephit_curve[t]
+        rows.append(pd.DataFrame(row_data))
     predictions = pd.concat(rows, ignore_index=True)
 
     for col in ["deepsurv_risk_score", "deephit_risk_score"]:
         assert predictions[col].notna().all(), f"[{sex_label}] NaN values in {col}"
-    for col in ["deepsurv_survival_at_10y", "deephit_survival_at_10y"]:
-        assert predictions[col].between(0, 1).all(), f"[{sex_label}] {col} outside [0, 1]"
+    for t in EVAL_TIME_GRID:
+        for prefix in ["deepsurv", "deephit"]:
+            col = f"{prefix}_survival_at_{t}y"
+            assert predictions[col].between(0, 1).all(), f"[{sex_label}] {col} outside [0, 1]"
 
     test_mask = predictions["split"] == "test"
     test_deepsurv_cindex = concordance_index_censored(
