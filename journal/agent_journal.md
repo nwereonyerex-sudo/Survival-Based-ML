@@ -55,3 +55,43 @@ rates passed within tolerance on the first run — no anomalies to flag per §0.
 **Test/sanity check (§10.4):** ran `python src/01_data_ingestion.py` end-to-end — exits 0,
 schema check passes, all four missingness-rate checks land within the ±2pp tolerance band
 (no `<-- ANOMALY` flags printed).
+
+## 2026-08-20 — Stage 2: preprocessing (imputation, encoding, sex-specific split)
+
+**Branch:** `session/2026-08-20-stage2-preprocessing`
+
+**What was built:** `src/02_preprocessing.py` — loads and re-verifies the raw CSV (§3),
+imputes missing values per sex cohort, documents the encoding step, splits each sex cohort
+70/15/15 stratified on the event indicator (§6, `random_state=42`), and writes six CSVs to
+`data/processed/` (`{male,female}_{train,val,test}.csv`).
+
+**Deviations from spec, both raised to and approved by the user before writing code (§14):**
+1. **`smoker` / `family_history_of_cardiovascular_disease` are left untouched, not given an
+   "unknown" category as §4 literally states.** Stage 1 established these columns have zero
+   NaNs — the 1→0 flip (p=0.30, Burns, Richardson and Driessens, 2024) is a silent bit-flip
+   with no marker distinguishing a corrupted 0 from a true 0, so there is nothing to impute or
+   flag. Per the user's explicit instruction, both columns are documented as carrying known
+   non-differential measurement error at p=0.30, not treated as missing data.
+2. **Imputation order:** computed per-sex, on the whole cohort, *before* the 70/15/15 split —
+   matching §11's literal script description ("imputation, encoding, ... split"), at the cost
+   of a minor, acknowledged leak of validation/test rows into the training-fold median. User
+   chose this over a stricter split-first/impute-from-training-only alternative, given the
+   leak is small for a low-capacity statistic like a median.
+3. **New `data/processed/` folder**, not listed in §11's repo layout, added to persist the
+   split CSVs for Stages 3–8 to read directly (user's choice over having each stage
+   regenerate the split deterministically via `random_state=42`).
+
+Imputation medians (male vs female — differ enough to justify sex-specific imputation per
+§0.4's independent-pipelines principle, rather than pooling): BMI 27.10 vs 27.10, SBP 130.00
+vs 129.00, FEV1 (COPD-negative) 95.01 vs 95.06, FEV1 (COPD-positive) 80.01 vs 80.06.
+
+**Unexpected finding:** none beyond Stage 1's. Split event rates land within 0.02pp of the
+full-cohort rate for both sexes (well inside the 1pp sanity-check tolerance) — stratification
+worked as expected.
+
+**Open questions:** none blocking.
+
+**Test/sanity check (§10.4):** ran `python src/02_preprocessing.py` end-to-end — exits 0. For
+each sex: split sizes reconstruct the cohort exactly, no `patient_id` appears in more than one
+partition, no residual NaNs in the imputed columns after the split, and event rate stays
+within 1pp of the full cohort in every partition.
