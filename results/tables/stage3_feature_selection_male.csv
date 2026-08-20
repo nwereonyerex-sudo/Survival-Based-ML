@@ -1,0 +1,13 @@
+predictor,dropped_by_multicollinearity,lasso_coefficient,selected_by_lasso,in_qrisk3_basis,lasso_qrisk3_disagreement,final_selected_feature_set
+age,False,0.06550243501812708,True,True,False,True
+body_mass_index,False,0.0,False,True,True,False
+systolic_blood_pressure,False,0.007315830811636217,True,True,False,True
+forced_expiratory_volume_1,True,,False,False,False,False
+smoker,False,0.215271879002487,True,True,False,True
+hypertension_treated,False,0.13473097215948454,True,True,False,True
+family_history_of_cardiovascular_disease,False,0.13290116797341356,True,True,False,True
+atrial_fibrillation,False,0.2893222720800789,True,True,False,True
+chronic_kidney_disease,False,0.11020678164597451,True,True,False,True
+rheumatoid_arthritis,False,0.015192873754268851,True,True,False,True
+diabetes,False,0.49805008186939237,True,True,False,True
+chronic_obstructive_pulmonary_disorder,False,0.0,False,False,False,False

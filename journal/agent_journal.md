@@ -95,3 +95,55 @@ worked as expected.
 each sex: split sizes reconstruct the cohort exactly, no `patient_id` appears in more than one
 partition, no residual NaNs in the imputed columns after the split, and event rate stays
 within 1pp of the full cohort in every partition.
+
+## 2026-08-20 — Stage 3: feature selection
+
+**Branch:** `session/2026-08-20-stage3-feature-selection`
+
+**What was built:** `src/03_feature_selection.py` — per sex, on the training fold only:
+Pearson/point-biserial multicollinearity screening (§5.1), L1-penalised Cox LASSO via
+`sksurv.linear_model.CoxnetSurvivalAnalysis` (Tibshirani, 1996; Pölsterl, 2020) with the
+penalty strength tuned on the validation fold by C-index (§5.2), and an explicit QRISK3
+cross-reference (§5.3, predictor set from §7). Writes
+`results/tables/stage3_feature_selection_{male,female}.csv` with full provenance per
+predictor (dropped-by-multicollinearity / LASSO coefficient / selected / in-QRISK3-basis /
+disagreement / final set).
+
+**Deviations from spec, raised to and resolved by the user before/during coding (§14):**
+1. **"14 predictors" → 12.** §4/§5.1 say feature selection runs across "14 predictors," but
+   only 12 dataset columns are usable as survival-model predictors — the figure only reaches
+   14 by also counting `time_to_event_or_censoring` and `heart_attack_or_stroke_occurred`
+   (the outcome itself). Treated as a spec wording slip; ran on the 12 actual clinical
+   columns, per user instruction.
+2. **FEV1/COPD multicollinearity tie-break.** The one pair that actually exceeded |r| > 0.80
+   (forced_expiratory_volume_1 vs chronic_obstructive_pulmonary_disorder) has neither member
+   in the QRISK3 basis, so the standard tie-break rule (§5.1) doesn't apply. User specified a
+   fallback rule: recompute the correlation on complete cases only (excluding FEV1's imputed
+   rows) — if it stays ≥0.80, keep the more information-rich continuous FEV1 and drop COPD;
+   if it drops meaningfully below 0.80, treat the full-sample correlation as inflated by
+   Stage 2's imputation and drop FEV1 instead, keeping COPD. Implemented in
+   `resolve_tie_by_complete_case_correlation()`.
+
+**Unexpected finding:** the complete-case correlation *did* drop meaningfully below the
+threshold — full-sample r = −0.809 (male) / −0.808 (female) fell to −0.777 / −0.787 once each
+sex's imputed FEV1 rows (24,022 male / 24,430 female — the majority of the column) were
+excluded. So per the user's rule, FEV1 was dropped and COPD kept for both sexes. This is a
+genuine, non-trivial result of the imputation strategy: it confirms the raw FEV1↔COPD
+relationship is somewhat weaker than the full sample suggested, and it changed the LASSO
+outcome materially — with FEV1 removed, COPD's coefficient goes from being shrunk to exactly
+0 (when competing with correlated FEV1 in the earlier, unscreened run) to a small but nonzero
+signal (−0.055) for the female cohort. This is itself a working demonstration of why the
+multicollinearity screening step precedes LASSO in the first place, rather than only a
+process footnote.
+
+**Final feature sets:** male keeps 9/11 candidates (drops body_mass_index, FEV1 screened out
+pre-LASSO); female keeps 10/11 (drops body_mass_index). LASSO/QRISK3 disagreements: BMI
+dropped by LASSO despite QRISK3 basis (both sexes); COPD kept by LASSO despite not being a
+QRISK3 predictor (female only). Both logged as disagreements per §5.3, not reconciled.
+
+**Open questions:** none blocking.
+
+**Test/sanity check (§10.4):** ran `python src/03_feature_selection.py` end-to-end — exits 0.
+For each sex: no multicollinearity-dropped predictor leaks into the final selected set,
+LASSO selects a non-empty feature set, and validation C-index at the chosen alpha is 0.807
+(male) / 0.824 (female).
