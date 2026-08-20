@@ -379,3 +379,61 @@ too, aside from the already-documented harmless RSF floating-point noise from `n
 parallelism.
 
 **Open questions:** none blocking.
+
+## 2026-08-20 — Stage 7: evaluation (C-index, Uno's C, integrated Brier score, calibration)
+
+**Branch:** `session/2026-08-20-stage7-evaluation`
+
+**What was built:** `src/07_evaluation.py` — on the test set only (§6), per sex, for all six
+models: Harrell's C-index (`concordance_index_censored`), Uno et al.'s (2011) IPCW
+C-statistic (`concordance_index_ipcw`), and the Brier score (`integrated_brier_score` for the
+five curve-producing models; single-timepoint `brier_score` for QRISK3-style — see below),
+each with a bootstrap 95% CI from 1,000 resamples (§8). Every model's metrics also get a
+paired-bootstrap effect size + CI against both the CoxPH and QRISK3-style baselines (§8's
+last bullet — pairing uses the *same* resample indices for both models in each comparison, so
+the difference's CI is valid, not just two independent CIs subtracted). A 2×3 decile-grouped
+calibration grid (observed KM-estimated risk vs mean predicted risk) is plotted per sex.
+Final six-model × two-sex table written to `results/tables/stage7_evaluation_summary.csv`.
+
+**Two technical/methodological points worked out while building this stage, both logged
+before writing the relevant code (§14):**
+1. **IPCW evaluation horizon: 9.99y, not exactly 10y.** `sksurv`'s IPCW-weighted estimators
+   (Uno's C, Brier score) require evaluation times strictly less than the test set's maximum
+   follow-up — undefined exactly at that boundary, and ~93% of patients are administratively
+   censored at exactly year 10 (Stage 1's censoring profile), so time=10.0 sits right on the
+   boundary. Evaluated at `TAU=9.99` instead — a standard technical workaround in this
+   literature (the last survival-curve step doesn't change between 9.99 and 10.0, so this is
+   exact, not an approximation, for every curve-producing model).
+2. **QRISK3-style gets a single-timepoint Brier score, not integrated** — it has no
+   multi-year curve (§7: fixed formula, not a fitted model; see the Stages 4-6 patch above).
+   Labelled `brier_score_type = "single_timepoint_9.99y"` in the output table so this isn't
+   silently presented as equivalent to the other five models' `"integrated"` score.
+
+**Runtime:** learned from Stage 5 — timed a small-scale (50-resample, 1-model) version first
+(~42ms/resample), projected the full 1,000×6×2 run at ~500 seconds before committing to it.
+Actual: 7:42 wall-clock, in line with the projection. No GBSA-style surprise this time.
+
+**Also fixed (unrelated, user-reported):** the calibration grid originally gave each of the 6
+subplots its own axis scale, making cross-model visual comparison harder than it needed to
+be. Changed to a single shared scale (max across all 6 models' curves) across the whole grid.
+
+**Notable finding, worth carrying into the thesis discussion (§0.7 — not smoothed over):**
+QRISK3-style shows the *best* discrimination of all six models in both sexes (C-index 0.820
+male / 0.823 female vs CoxPH's 0.810 / 0.819) but is clearly and substantially the *worst*
+calibrated — its Brier score 95% CI doesn't even overlap the other five models' (male:
+QRISK3 [0.0548, 0.0627] vs CoxPH [0.0360, 0.0422]; same pattern in females). This is a
+genuine, statistically distinguishable discrimination/calibration split, not noise from a
+single bootstrap draw — a real example of the "improvement or honest non-improvement...
+stated with effect size and CI" §12 asks for, and worth flagging explicitly rather than
+just reporting the headline C-index. Among the five data-fitted models, all differences vs
+CoxPH are small and every CI comfortably contains zero — no fitted model shows a
+statistically distinguishable improvement over the CoxPH baseline in either metric, for
+either sex.
+
+**Open questions:** none blocking.
+
+**Test/sanity check (§10.4):** ran `python src/07_evaluation.py` end-to-end — exits 0. All
+three metrics fall within their plausible [0, 1] range for every model/sex; every point
+estimate falls within its own bootstrap 95% CI (verified programmatically, not just by eye);
+CoxPH's and QRISK3-style's self-comparison deltas are correctly absent (not zero — genuinely
+skipped) from the output table.
