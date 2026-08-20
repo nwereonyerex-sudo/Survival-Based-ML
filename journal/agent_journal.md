@@ -289,3 +289,50 @@ floating-point non-associativity from `RandomSurvivalForest`'s `n_jobs=-1` paral
 aggregation (summation order across threads isn't guaranteed identical run-to-run), not a
 reproducibility failure. GBSA (single-threaded) matched byte-for-byte. Discarded the
 regenerated CSVs rather than committing meaningless-diff noise.
+
+## 2026-08-20 — Stage 6: deep survival models (DeepSurv, DeepHit)
+
+**Branch:** `session/2026-08-20-stage6-deep-survival-models`
+
+**Environment note:** the Python-3.14 compatibility risk flagged at project setup did not
+materialise — `torch==2.13.0` (with a native `cp314` wheel) and `pycox==0.3.0` both installed
+cleanly with no fallback to an older Python needed.
+
+**What was built:** `src/06_deep_survival_models.py` — per sex, on Stage 3's selected
+feature set (§5.4): DeepSurv (`pycox.models.CoxPH`, a neural net replacing the Cox linear
+predictor — Katzman et al., 2018) and DeepHit single-risk (`pycox.models.DeepHitSingle` —
+Lee et al., 2018, single-risk since this dataset has one composite outcome, per §7). Features
+standardised (`StandardScaler`, fit on train only) since neural nets need scaled input,
+unlike the tree/linear models in Stages 4-5. Each model tuned over a small 2-candidate grid
+(hidden-layer size × learning rate) with early stopping (patience=10, max 100 epochs),
+scored by C-index on the validation fold — same validation-decides principle as every prior
+stage. DeepHit's discrete time grid uses `num_durations=10`, matching the dataset's existing
+integer-year granularity exactly (no arbitrary binning choice). Predictions (risk score +
+survival-at-10y per model) written to
+`results/tables/stage6_deep_survival_predictions_{sex}.csv`.
+
+**Runtime:** trivial compared to Stage 5's GBSA saga — smoke-tested first (learned from that
+experience), confirmed a single DeepSurv fit took ~1.7 seconds with early stopping (16
+epochs), then ran the full grid × both models × both sexes in 36.7 seconds total wall-clock.
+
+**Results:**
+| Sex | Model | Best hyperparameters | Val C-index | Test C-index (informal) |
+|---|---|---|---|---|
+| male | DeepSurv | hidden=[64,64], lr=0.001 | 0.8066 | 0.8089 |
+| male | DeepHit | hidden=[64,64], lr=0.001 | 0.8065 | 0.8085 |
+| female | DeepSurv | hidden=[32,32], lr=0.01 | 0.8234 | 0.8151 |
+| female | DeepHit | hidden=[32,32], lr=0.01 | 0.8234 | 0.8113 |
+
+Test-set C-index is an informal sanity check only, as in Stage 5 — formal §8 evaluation is
+Stage 7's job. Results land in the same ~0.81 (male) / ~0.81-0.82 (female) band as CoxPH, RSF,
+and GBSA — consistent across all five fitted models so far, no outliers.
+
+**Unexpected finding:** none.
+
+**Open questions:** none blocking.
+
+**Test/sanity check (§10.4):** ran `python src/06_deep_survival_models.py` end-to-end — exits
+0. No NaNs in either risk-score column; both survival-at-10y columns fall within [0, 1] for
+every patient in every split; row counts match each sex's full cohort size; mean
+`*_survival_at_10y` (0.9196 male DeepHit, 0.9424 female DeepHit) is consistent with the KM
+and CoxPH 10-year survival estimates from Stage 4.
