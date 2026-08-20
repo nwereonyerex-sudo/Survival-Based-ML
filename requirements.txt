@@ -1,2 +1,4 @@
 # Pinned as each library is installed during Stage 1+ (see CLAUDE.md §2).
 # Format: package==exact.version
+pandas==3.0.5
+numpy==2.5.2
