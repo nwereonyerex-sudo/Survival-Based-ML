@@ -147,3 +147,61 @@ QRISK3 predictor (female only). Both logged as disagreements per §5.3, not reco
 For each sex: no multicollinearity-dropped predictor leaks into the final selected set,
 LASSO selects a non-empty feature set, and validation C-index at the chosen alpha is 0.807
 (male) / 0.824 (female).
+
+## 2026-08-20 — Stage 4: baselines (Kaplan-Meier, CoxPH, QRISK3-style score)
+
+**Branch:** `session/2026-08-20-stage4-baselines`
+
+**What was built:** `src/04_baselines.py` — per sex: a descriptive Kaplan-Meier curve over
+the full cohort (train+val+test recombined, saved to `results/figures/km_curve_{sex}.png`),
+a CoxPH model (`sksurv.linear_model.CoxPHSurvivalAnalysis`, Cox 1972) fitted on the training
+fold using Stage 3's selected feature set, and the §7 simplified QRISK3-style score (fixed
+formula, not fitted, uses its own predictor set regardless of Stage 3's LASSO selection).
+Predictions for all three splits, both models, written to
+`results/tables/stage4_baseline_predictions_{sex}.csv`. Per §11's architecture, formal
+scoring (C-index, Uno's C, Brier score, calibration, bootstrap 95% CIs — §8/§12) is deferred
+to Stage 5 (`07_evaluation.py`), applied uniformly across all six models rather than
+duplicated here.
+
+**Major deviation from spec, investigated, raised to and resolved by the user before coding
+(§14):** §7 asks to reconstruct "the exact simplified variant Burns, Richardson and Driessens
+(2024) used to simulate the outcome." Checked directly: their paper states only a qualitative
+description of their QRISK3 modification (diabetes≈type 2, smoker≈light smoker,
+cholesterol/HDL=3, SBP SD=10mmHg, baseline survival 0.977 male/0.989 female at 10y) — no
+coefficients, equations, or code are published anywhere, and the Zenodo deposit contains only
+the CSV + metadata, nothing else. Their exact coefficients are permanently unrecoverable from
+public information. Per the user's instruction, this rebuild uses the real QRISK3-2017
+coefficients instead (Hippisley-Cox, Coupland and Brindle, 2017), sourced from ClinRisk
+Ltd.'s own LGPL-licensed reference implementation
+(github.com/sisuhealthgroup/qrisk3/blob/master/src/lib/original/qrisk3.c, mirroring
+qrisk.org/svn.clinrisk.co.uk, released explicitly "to enable others to implement the
+algorithm faithfully"), restricted to this dataset's available predictors per §7's removal
+list. My Python port was validated against ClinRisk's own published test suite (8 age×sex×
+cholesterol-ratio cases, white ethnicity, no comorbidities) before restriction — all 8 matched
+to within 0.05 percentage points. Corroborating evidence this is a reasonable proxy for
+Burns et al.'s actual approach: their reported baseline survival values (0.977/0.989) match
+the real QRISK3 survivor constants (0.977268.../0.988876...) to 3 decimal places, indicating
+they anchored their simulation on the same baseline hazard function.
+
+**Second finding, investigated and resolved with the user (§0.7, not smoothed over):** QRISK3
+is only officially validated for ages 25–84 (confirmed via NICE guidance search) — 11.1% of
+this dataset (11,110 patients) is under 25. For the ordinary case this doesn't matter much
+(scores stay low/plausible), but the fractional-polynomial age/BMI terms are not calibrated
+for that range, and for the rare combination of very young age with this dataset's
+implausible synthetic BMI floor (values down to 6, no lower bound — traced one case,
+age=18/BMI=10.2, to a linear-predictor contribution of +15.5 from the BMI terms alone), the
+formula's survival exponentiation saturates at a score of exactly 100.0. Affects 13 patients
+total (11 male, 2 female — 0.013% of the dataset). Per the user's decision, left unclipped
+and unexcluded: the formula is applied identically to every patient, this behaviour is
+documented in the script and here, and no arbitrary clip threshold was invented.
+
+**Unexpected finding:** none beyond the two above.
+
+**Open questions:** none blocking.
+
+**Test/sanity check (§10.4):** ran `python src/04_baselines.py` end-to-end — exits 0. CoxPH
+scores are non-null for every patient in every split; QRISK3-style scores fall within
+[0, 100] for every patient (the 13-patient ceiling case is a valid boundary value, not an
+out-of-range error); KM curves are monotonically non-increasing step functions ending at
+92.05% (male) / 94.74% (female) 10-year survival, consistent with each sex's ~7.9%/~5.3%
+mean QRISK3-style score and ~7.9%/~5.3% observed event rate from Stage 2.
