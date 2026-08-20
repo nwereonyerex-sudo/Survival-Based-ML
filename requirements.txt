@@ -1,0 +1,2 @@
+# Pinned as each library is installed during Stage 1+ (see CLAUDE.md §2).
+# Format: package==exact.version
