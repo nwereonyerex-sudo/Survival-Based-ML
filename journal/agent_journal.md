@@ -205,3 +205,14 @@ scores are non-null for every patient in every split; QRISK3-style scores fall w
 out-of-range error); KM curves are monotonically non-increasing step functions ending at
 92.05% (male) / 94.74% (female) 10-year survival, consistent with each sex's ~7.9%/~5.3%
 mean QRISK3-style score and ~7.9%/~5.3% observed event rate from Stage 2.
+
+**Patch (found and fixed while starting Stage 5, same day):** `stage4_baseline_predictions_*.csv`
+only carried a CoxPH *risk score*, not a predicted 10-year survival probability — sufficient
+for the C-index but not for §8's integrated Brier score / calibration plot, which need
+1 − S(10|X) per patient. Added `survival_at_horizon()` to `src/04_baselines.py` (evaluates
+`CoxPHSurvivalAnalysis.predict_survival_function()` at the 10-year horizon) and a new
+`coxph_survival_at_10y` column. Re-ran Stage 4 end-to-end — exits 0, new column falls within
+[0, 1] for every patient, mean 0.9209 (male) matches the KM 10-year survival of 0.9205, and
+correlates 0.87 with the existing risk score (expected — related but non-identical
+quantities). `qrisk3_style_score` already encodes a 10-year probability (÷100), so it needed
+no change. Stage 5's RSF/GBSA outputs are built with both quantities from the start.
