@@ -205,3 +205,78 @@ scores are non-null for every patient in every split; QRISK3-style scores fall w
 out-of-range error); KM curves are monotonically non-increasing step functions ending at
 92.05% (male) / 94.74% (female) 10-year survival, consistent with each sex's ~7.9%/~5.3%
 mean QRISK3-style score and ~7.9%/~5.3% observed event rate from Stage 2.
+
+**Patch (found and fixed while starting Stage 5, same day):** `stage4_baseline_predictions_*.csv`
+only carried a CoxPH *risk score*, not a predicted 10-year survival probability — sufficient
+for the C-index but not for §8's integrated Brier score / calibration plot, which need
+1 − S(10|X) per patient. Added `survival_at_horizon()` to `src/04_baselines.py` (evaluates
+`CoxPHSurvivalAnalysis.predict_survival_function()` at the 10-year horizon) and a new
+`coxph_survival_at_10y` column. Re-ran Stage 4 end-to-end — exits 0, new column falls within
+[0, 1] for every patient, mean 0.9209 (male) matches the KM 10-year survival of 0.9205, and
+correlates 0.87 with the existing risk score (expected — related but non-identical
+quantities). `qrisk3_style_score` already encodes a 10-year probability (÷100), so it needed
+no change. Stage 5's RSF/GBSA outputs are built with both quantities from the start.
+
+## 2026-08-20 — Stage 5: survival ML models (RSF, GBSA)
+
+**Branch:** `session/2026-08-20-stage5-ml-models`
+
+**What was built:** `src/05_survival_ml_models.py` — per sex, on Stage 3's selected feature
+set (§5.4): Random Survival Forest and Gradient-Boosting Survival Analysis
+(`sksurv.ensemble`), each tuned by a small grid fit on the training fold and scored by
+Harrell's C-index on the validation fold (same validation-not-training/test discipline as
+Stage 3's LASSO alpha and Stage 4's principle). Both risk score and predicted 10-year
+survival probability are written per model to
+`results/tables/stage5_ml_model_predictions_{sex}.csv`, matching the format Stage 4's patch
+established. `random_state=42` throughout (§0.3).
+
+**Runtime investigation — three background attempts before a working run, worth recording in
+full since it changed the tuning grid (§14):**
+1. First attempt: `RandomSurvivalForest` was fit without `n_jobs`, so all trees were built on
+   a single core. 100+ estimators at unlimited depth on ~35-45k rows/sex didn't complete even
+   one grid combination in 10+ minutes — killed.
+2. Second attempt: added `n_jobs=-1` to RSF (fixed — full RSF grid, 4 combos × 2 sexes, then
+   completed in well under 5 minutes). GBSA has no such parallelism (boosting is inherently
+   sequential) and turned out to be the real bottleneck: the run appeared to stall, completing
+   only 1 of 8 GBSA combinations for the male cohort after ~2 hours of wall-clock time —
+   killed and investigated rather than just waiting longer or assuming a bug.
+   - Isolated timing test confirmed this was not a bug or hang: `GradientBoostingSurvivalAnalysis`
+     with `n_estimators=20` took ~97 seconds on the male training fold (35,352 rows) — about
+     4.9s/boosting-stage. A second test at `subsample=0.5` showed `max_depth=2` and `max_depth=3`
+     cost almost the same (~69s vs ~68s for 20 estimators), confirming the dominant cost is
+     scikit-survival's Cox partial-likelihood loss evaluating the full risk set at every
+     boosting stage, not tree-building — so cost scales with `n_estimators`, barely with depth.
+     The original 8-combo grid with `n_estimators` up to 300 would have realistically taken
+     3+ hours total.
+3. Third attempt (successful, ~47 minutes total, user-approved after seeing the diagnosis):
+   trimmed `GBSA_GRID` to 3 combos, capped `n_estimators` at 100, added `subsample=0.5`
+   (stochastic gradient boosting — legitimately part of Friedman (2001), the same paper GBSA
+   is cited to, and a genuine regularisation technique, not just a speed hack). Logged here as
+   a practicality-driven deviation from an exhaustive grid, not a methodology change — the
+   validation-set tuning principle itself is unchanged, just applied to a smaller candidate
+   set.
+
+**Results:**
+| Sex | Model | Best hyperparameters | Val C-index | Test C-index (informal) |
+|---|---|---|---|---|
+| male | RSF | n_estimators=300, max_depth=8 | 0.8052 | 0.8073 |
+| male | GBSA | n_estimators=100, learning_rate=0.1, max_depth=3, subsample=0.5 | 0.8053 | 0.8086 |
+| female | RSF | n_estimators=300, max_depth=8 | 0.8209 | 0.8127 |
+| female | GBSA | n_estimators=100, learning_rate=0.1, max_depth=3, subsample=0.5 | 0.8186 | 0.8141 |
+
+Test-set C-index here is an informal sanity check only — the formal §8 evaluation (with
+bootstrap 95% CIs and comparison against the sex-specific CoxPH/QRISK3 baseline) happens
+uniformly for all six models in Stage 7. Both models land close to Stage 4's CoxPH baseline
+(and to each other) for both sexes — a plausible, non-suspicious result, not a sign either
+model is badly mis-tuned. Unlimited-depth RSF (`max_depth=None`) is consistently and
+meaningfully worse than depth-capped RSF for both sexes (0.777-0.798 vs 0.805-0.821 val
+C-index) — expected overfitting from unconstrained trees on a modest per-leaf sample size.
+
+**Unexpected finding:** none beyond the runtime investigation above.
+
+**Open questions:** none blocking.
+
+**Test/sanity check (§10.4):** ran `python src/05_survival_ml_models.py` end-to-end — exits
+0. No NaNs in either risk-score column; both survival-at-10y columns fall within [0, 1] for
+every patient in every split; row counts match each sex's full cohort size (50,503 male /
+49,497 female).

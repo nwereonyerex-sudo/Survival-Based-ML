@@ -31,6 +31,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from sksurv.linear_model import CoxPHSurvivalAnalysis
 from sksurv.nonparametric import kaplan_meier_estimator
@@ -44,6 +45,7 @@ RESULTS_FIGURES = PROJECT_ROOT / "results" / "figures"
 EVENT_COL = "heart_attack_or_stroke_occurred"
 TIME_COL = "time_to_event_or_censoring"
 SPLITS = ["train", "val", "test"]
+HORIZON_YEARS = 10.0
 
 
 # --- QRISK3-style score (§7) --------------------------------------------------------------
@@ -209,6 +211,14 @@ def fit_coxph(train_df: pd.DataFrame, features: list, sex_label: str):
     return model
 
 
+def survival_at_horizon(model, X: pd.DataFrame, horizon: float = HORIZON_YEARS) -> np.ndarray:
+    """§8: Brier score and calibration need a predicted P(event by horizon) = 1 - S(horizon|X)
+    per patient, not just a relative risk score — the risk score alone is only sufficient for
+    the C-index. Evaluates each patient's individual survival step function at the horizon."""
+    step_functions = model.predict_survival_function(X)
+    return np.array([fn(horizon) for fn in step_functions])
+
+
 # --- Orchestration -----------------------------------------------------------------------------
 
 def run_sex_pipeline(sex_label: str) -> None:
@@ -224,7 +234,9 @@ def run_sex_pipeline(sex_label: str) -> None:
     rows = []
     for part in SPLITS:
         df = splits[part]
-        coxph_scores = coxph_model.predict(df[features].astype(float))
+        X_part = df[features].astype(float)
+        coxph_scores = coxph_model.predict(X_part)
+        coxph_survival_10y = survival_at_horizon(coxph_model, X_part)
         qrisk3_scores = df.apply(lambda row: qrisk3_style_score(row, sex_label), axis=1)
         rows.append(pd.DataFrame({
             "patient_id": df["patient_id"],
@@ -232,11 +244,15 @@ def run_sex_pipeline(sex_label: str) -> None:
             TIME_COL: df[TIME_COL],
             EVENT_COL: df[EVENT_COL],
             "coxph_risk_score": coxph_scores,
+            "coxph_survival_at_10y": coxph_survival_10y,
             "qrisk3_style_score": qrisk3_scores,
         }))
     predictions = pd.concat(rows, ignore_index=True)
 
     assert predictions["coxph_risk_score"].notna().all(), f"[{sex_label}] NaN CoxPH scores"
+    assert predictions["coxph_survival_at_10y"].between(0, 1).all(), (
+        f"[{sex_label}] coxph_survival_at_10y outside [0, 1]"
+    )
     assert predictions["qrisk3_style_score"].between(0, 100).all(), (
         f"[{sex_label}] QRISK3-style score outside [0, 100]"
     )
