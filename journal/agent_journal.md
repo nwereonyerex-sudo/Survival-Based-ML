@@ -1,6 +1,6 @@
 # Survival-Based ML for 10-Year Heart Attack/Stroke Risk — Project Journal
 
-Consolidated implementation journal, covering project setup through Stage 7 (evaluation).
+Consolidated implementation journal, covering project setup through Stage 8 (explainability).
 Each entry follows CLAUDE.md §10.5: what was built, deviations from spec and why, open
 questions, and anything unexpected encountered — plus the sanity check that closed the stage.
 
@@ -20,6 +20,7 @@ questions, and anything unexpected encountered — plus the sanity check that cl
 7. [Stage 6 — Deep survival models (DeepSurv, DeepHit)](#7-stage-6--deep-survival-models-deepsurv-deephit)
 8. [Patch — survival curves for Stage 7's integrated Brier score](#8-patch-stages-4-6--survival-curves-for-stage-7s-integrated-brier-score)
 9. [Stage 7 — Evaluation](#9-stage-7--evaluation-c-index-unos-c-integrated-brier-score-calibration)
+10. [Stage 8 — Explainability (SHAP, LIME, stability testing)](#10-stage-8--explainability-shap-lime-stability-testing)
 
 ---
 
@@ -480,5 +481,86 @@ skipped) from the output table.
 
 ---
 
-*End of journal. Stage 8 (SHAP + LIME explainability) is the last pipeline stage remaining
-before the results dashboard.*
+## 10. Stage 8 — Explainability (SHAP, LIME, stability testing)
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage8-explainability`
+
+**What was built:** `src/08_explainability.py` — per sex, on all four ML/DL models (RSF,
+GBSA, DeepSurv, DeepHit), refit using the exact best hyperparameters already found in Stages
+5-6 (no re-tuning): SHAP global summary (mean |SHAP value| per feature, compared against
+CoxPH coefficients in one grouped bar chart), SHAP dependence plots for the continuous
+predictors, LIME local explanations on a matched 200-patient sample of the test set (same
+patients used for both SHAP and LIME, for direct per-patient comparability), explicit
+SHAP/LIME top-3-feature agreement per patient, and §9.4's stability test — SHAP importance
+recomputed on 2 independent bootstrap resamples of the training fold (seeds 43/44) per model,
+with any predictor whose rank shifts by more than 2 positions across the three fits (main +
+2 resamples) flagged as unstable rather than reported as "robust."
+
+**Two spec-vs-reality gaps, investigated and resolved before coding, per §14:**
+1. **SHAP explainer choice.** `shap.TreeExplainer` does not support `sksurv` models —
+   confirmed directly (`InvalidModelError: Model type not yet supported by TreeExplainer:
+   <class 'sksurv.ensemble.forest.RandomSurvivalForest'>`), not assumed. Used
+   `shap.Explainer` with each model's `.predict()` as a black-box function instead, uniformly
+   across all four model types. With only 9-10 features, SHAP automatically selects its
+   exact-computation explainer (not the slow Kernel approximation) — confirmed via timing
+   test: ~0.09-0.15s/sample regardless of model type. GBSA's already-known ~6-minute fit time
+   (Stage 5) was the only real cost; SHAP/LIME explanation itself is fast for every model
+   (LIME: ~0.02s/sample).
+2. **BMI dependence plot.** §9 names "age, systolic BP, BMI" for dependence plots, but BMI
+   was dropped by Stage 3's LASSO for *both* sexes — confirmed neither sex's final model
+   feature set includes it (only `age` and `systolic_blood_pressure` remain as continuous
+   predictors for both). Dependence plots cover those two; BMI's absence is a direct,
+   already-logged consequence of Stage 3's own feature selection, not a new deviation.
+
+**Runtime and an unplanned interruption:** GBSA's known ~6-minute-per-fit cost (3 fits per
+sex: main + 2 stability resamples) dominates, as expected from Stage 5. First attempt was
+killed mid-run by something external (not a code bug — the male cohort had already completed
+and written all its output correctly by that point; `ps`/output logs show no error, just an
+abrupt termination partway through the female cohort's GBSA fit, most likely an environment
+interruption rather than anything in the script, since several other Stage 5/6/7 background
+runs of similar or longer duration completed without issue earlier in this project). Verified
+the male cohort's partial output was valid and complete before relaunching the full script
+end-to-end rather than trying to stitch together a resumed run. Second attempt completed
+cleanly in 44:46 — male cohort's results reproduced *exactly* against the killed run's
+partial output, confirming determinism was unaffected by the interruption.
+
+**Notable findings, worth carrying into the thesis discussion (§0.7 — not smoothed over):**
+1. **Tree ensembles concentrate importance on age; CoxPH and the deep models spread it
+   across comorbidities — consistent in both sexes.** RSF and GBSA's SHAP importance is
+   dominated overwhelmingly by `age` (every other predictor is comparatively minor), while
+   CoxPH's coefficients and DeepSurv/DeepHit's SHAP values distribute meaningfully across
+   `diabetes`, `atrial_fibrillation`, `family_history_of_cardiovascular_disease`, and
+   `hypertension_treated` as well. This is a genuine cross-model disagreement about *which*
+   predictors matter, not just their relative ranking — worth flagging as a real modelling
+   difference, not an artefact of one run.
+2. **DeepSurv and DeepHit disagree with RSF/GBSA on the *functional form* of the systolic
+   blood pressure relationship, not just its magnitude.** RSF/GBSA's SBP dependence plots are
+   roughly monotonic increasing (higher SBP → higher SHAP contribution, the clinically
+   expected direction). DeepSurv and DeepHit instead show a clear U-shape — elevated SHAP
+   contribution at *both* low (~80-100 mmHg) and high (160mmHg+) SBP, dipping through the
+   normal range. Plausibly connects to finding 3 below (these are also the least stable
+   models) rather than being an equally-trustworthy alternative reading of the data — flagged
+   here rather than picking one interpretation to report.
+3. **DeepSurv and DeepHit's SHAP rankings are substantially less stable, and agree with LIME
+   substantially less, than RSF/GBSA's — despite similar C-index in Stage 7.** Unstable
+   predictor counts (rank shifts >2 positions across the 3 stability fits): RSF 1/9 (male) and
+   3/10 (female); GBSA 2/9 and 3/10; DeepSurv 7/9 and 6/10; DeepHit 6/9 and 5/10 — the
+   majority of predictors for the two deep models. Mean SHAP/LIME top-3 agreement follows the
+   same pattern: RSF/GBSA 1.38-2.23 out of 3; DeepSurv/DeepHit 0.53-1.68 out of 3. This is a
+   real explainability-vs-performance tradeoff: the deep models match the tree/linear models
+   on discrimination (§8) but their *explanations* are considerably less trustworthy — exactly
+   the kind of finding §9.4 was designed to surface, not something to average away.
+
+**Open questions:** none blocking.
+
+**Test/sanity check (§10.4):** ran `python src/08_explainability.py` end-to-end — exits 0.
+SHAP/LIME agreement counts and stability rank-ranges are non-negative for every model/sex
+(programmatic assertion, not just visual check); row counts in both output tables match
+9 or 10 predictors × 4 models exactly; dependence-plot age relationships are visually
+monotonic increasing for all four models, both sexes — consistent with every prior stage's
+finding that age is a strong, uncontroversial risk driver.
+
+---
+
+*End of journal. Stage 8 was the last modelling pipeline stage — the results dashboard is
+next.*
