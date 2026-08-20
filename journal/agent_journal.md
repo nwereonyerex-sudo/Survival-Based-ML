@@ -336,3 +336,46 @@ and GBSA — consistent across all five fitted models so far, no outliers.
 every patient in every split; row counts match each sex's full cohort size; mean
 `*_survival_at_10y` (0.9196 male DeepHit, 0.9424 female DeepHit) is consistent with the KM
 and CoxPH 10-year survival estimates from Stage 4.
+
+## 2026-08-20 — Patch (Stages 4-6): survival curves for Stage 7's integrated Brier score
+
+**Branch:** `session/2026-08-20-stage7-evaluation`
+
+**What was found, before writing any Stage 7 code:** §8's integrated Brier score (Graf et
+al., 1999) needs each model's predicted survival probability at *multiple* time points (a
+curve over the evaluation range), not the single year-10 value Stages 4-6 previously saved —
+sufficient for calibration-at-10y but not for the integrated metric. Raised to the user before
+coding, per §14 (same pattern as the CoxPH gap found before Stage 5).
+
+**What was changed:** added an `EVAL_TIME_GRID = [1..10]` (integer years, matching the
+dataset's own time resolution and the grid DeepHit already used internally) to
+`src/04_baselines.py`, `src/05_survival_ml_models.py`, and `src/06_deep_survival_models.py`.
+Each now writes `{model}_survival_at_{t}y` for every t in 1-10 (previously only `..._at_10y`)
+for CoxPH, RSF, GBSA, DeepSurv, and DeepHit. `survival_at_horizon()` (Stage 5) was superseded
+by the new `survival_curve_at_grid()` and removed rather than left as dead code.
+
+**QRISK3-style score is deliberately excluded from this patch — not an oversight.** It is a
+fixed, single-horizon clinical formula (§7), not a fitted survival model, so it has no
+natural multi-year curve. Stage 7 will compute the standard integrated Brier score for the
+five curve-producing models, and a single-timepoint (year-10) Brier score for QRISK3-style
+specifically, clearly labelled as such in the results table — a direct consequence of §7's
+own description of QRISK3 as fixed-horizon, not a new modelling assumption invented here.
+
+**Also fixed (unrelated, user-reported):** the Kaplan-Meier plot title in
+`src/04_baselines.py` included a `CLAUDE.md §7` citation, which rendered on the chart itself
+like a stray watermark rather than a normal figure title — citations belong in code
+comments/docstrings, never on a rendered figure that could end up in the thesis. Title is now
+just `"Kaplan-Meier — {sex} cohort (descriptive only)"`. Checked the rest of `src/` for
+similar spec-reference text baked into `set_title`/`suptitle`/`ax.text` calls — none found
+elsewhere. Will keep Stage 7's calibration plot titles clean on the same principle.
+
+**Verification:** re-ran all three patched stages end-to-end (Stage 5 in the background,
+~45 minutes given its tuning grid). All exit 0. Every new `*_survival_at_{t}y` column is
+monotonically non-increasing across t=1→10 for every patient in every split, in every model
+(0 violations checked across ~50k male / ~49k female rows × 2 models × 2 patched stages, plus
+Stage 4's CoxPH). Every previously-reported metric (grid C-index, best hyperparameters, test
+C-index) matched the pre-patch values exactly for Stages 4 and 6; Stage 5 matched exactly
+too, aside from the already-documented harmless RSF floating-point noise from `n_jobs=-1`
+parallelism.
+
+**Open questions:** none blocking.

@@ -46,6 +46,10 @@ EVENT_COL = "heart_attack_or_stroke_occurred"
 TIME_COL = "time_to_event_or_censoring"
 SPLITS = ["train", "val", "test"]
 HORIZON_YEARS = 10.0
+# Integer years 1-10 — matches the dataset's own time resolution (time_to_event_or_censoring
+# is integer-valued) and the grid DeepHit uses internally (Stage 6). Needed for Stage 7's
+# integrated Brier score, which requires survival probabilities across a range, not one point.
+EVAL_TIME_GRID = list(range(1, 11))
 
 
 # --- QRISK3-style score (§7) --------------------------------------------------------------
@@ -188,7 +192,7 @@ def plot_kaplan_meier(sex_label: str, full_cohort: pd.DataFrame) -> None:
     ax.fill_between(time, conf_int[0], conf_int[1], alpha=0.25, step="post")
     ax.set_xlabel("Years")
     ax.set_ylabel("Survival probability (event-free)")
-    ax.set_title(f"Kaplan-Meier — {sex_label} cohort (descriptive only, CLAUDE.md §7)")
+    ax.set_title(f"Kaplan-Meier — {sex_label} cohort (descriptive only)")
     ax.set_ylim(0, 1.02)
     ax.legend()
     fig.tight_layout()
@@ -219,6 +223,15 @@ def survival_at_horizon(model, X: pd.DataFrame, horizon: float = HORIZON_YEARS) 
     return np.array([fn(horizon) for fn in step_functions])
 
 
+def survival_curve_at_grid(model, X: pd.DataFrame, times=EVAL_TIME_GRID) -> dict:
+    """Stage 7's integrated Brier score (§8) needs each patient's survival probability at
+    multiple time points, not just the 10-year horizon — evaluates the same per-patient step
+    function at every year 1-10 (added when building Stage 7, patching this already-merged
+    stage rather than having Stage 7 re-fit the model; see journal 2026-08-20)."""
+    step_functions = model.predict_survival_function(X)
+    return {t: np.array([fn(t) for fn in step_functions]) for t in times}
+
+
 # --- Orchestration -----------------------------------------------------------------------------
 
 def run_sex_pipeline(sex_label: str) -> None:
@@ -236,23 +249,26 @@ def run_sex_pipeline(sex_label: str) -> None:
         df = splits[part]
         X_part = df[features].astype(float)
         coxph_scores = coxph_model.predict(X_part)
-        coxph_survival_10y = survival_at_horizon(coxph_model, X_part)
+        coxph_curve = survival_curve_at_grid(coxph_model, X_part)
         qrisk3_scores = df.apply(lambda row: qrisk3_style_score(row, sex_label), axis=1)
-        rows.append(pd.DataFrame({
+        row_data = {
             "patient_id": df["patient_id"],
             "split": part,
             TIME_COL: df[TIME_COL],
             EVENT_COL: df[EVENT_COL],
             "coxph_risk_score": coxph_scores,
-            "coxph_survival_at_10y": coxph_survival_10y,
             "qrisk3_style_score": qrisk3_scores,
-        }))
+        }
+        for t in EVAL_TIME_GRID:
+            row_data[f"coxph_survival_at_{t}y"] = coxph_curve[t]
+        rows.append(pd.DataFrame(row_data))
     predictions = pd.concat(rows, ignore_index=True)
 
     assert predictions["coxph_risk_score"].notna().all(), f"[{sex_label}] NaN CoxPH scores"
-    assert predictions["coxph_survival_at_10y"].between(0, 1).all(), (
-        f"[{sex_label}] coxph_survival_at_10y outside [0, 1]"
-    )
+    for t in EVAL_TIME_GRID:
+        assert predictions[f"coxph_survival_at_{t}y"].between(0, 1).all(), (
+            f"[{sex_label}] coxph_survival_at_{t}y outside [0, 1]"
+        )
     assert predictions["qrisk3_style_score"].between(0, 100).all(), (
         f"[{sex_label}] QRISK3-style score outside [0, 100]"
     )
