@@ -1,10 +1,31 @@
-# Agent journal
+# Survival-Based ML for 10-Year Heart Attack/Stroke Risk — Project Journal
 
-Stage-by-stage implementation notes, per CLAUDE.md §10.5. Each entry: what was built, any
-deviation from spec and why, open questions, and anything unexpected noticed in the data or
-results.
+Consolidated implementation journal, covering project setup through Stage 7 (evaluation).
+Each entry follows CLAUDE.md §10.5: what was built, deviations from spec and why, open
+questions, and anything unexpected encountered — plus the sanity check that closed the stage.
 
-## 2026-08-20 — Project setup
+**Repository:** https://github.com/nwereonyerex-sudo/Survival-Based-ML
+**Generated:** 2026-08-20
+
+---
+
+## Table of contents
+
+1. [Project setup](#1-project-setup)
+2. [Stage 1 — Data ingestion](#2-stage-1--data-ingestion)
+3. [Stage 2 — Preprocessing](#3-stage-2--preprocessing-imputation-encoding-sex-specific-split)
+4. [Stage 3 — Feature selection](#4-stage-3--feature-selection)
+5. [Stage 4 — Baselines (Kaplan-Meier, CoxPH, QRISK3-style score)](#5-stage-4--baselines-kaplan-meier-coxph-qrisk3-style-score)
+6. [Stage 5 — Survival ML models (RSF, GBSA)](#6-stage-5--survival-ml-models-rsf-gbsa)
+7. [Stage 6 — Deep survival models (DeepSurv, DeepHit)](#7-stage-6--deep-survival-models-deepsurv-deephit)
+8. [Patch — survival curves for Stage 7's integrated Brier score](#8-patch-stages-4-6--survival-curves-for-stage-7s-integrated-brier-score)
+9. [Stage 7 — Evaluation](#9-stage-7--evaluation-c-index-unos-c-integrated-brier-score-calibration)
+
+---
+
+## 1. Project setup
+
+**Date:** 2026-08-20 · **Branch:** (initial `main`)
 
 - Adopted the approved spec as `CLAUDE.md` at the repo root (copied from
   `~/Downloads/CLAUDE.md — Coding Session Specification.md`).
@@ -13,11 +34,13 @@ results.
 - Copied in `data/cvd_synthetic_dataset_v0.2.csv` and
   `data/cvd_synthetic_dataset_v0.2_metadata.xlsx` (both from `~/Downloads`) — both files
   referenced in §3 are present, no open item here.
-- No modeling code written yet. Stage 1 (data ingestion) will be the first session branch.
+- No modeling code written yet. Stage 1 (data ingestion) was the first session branch.
 
-## 2026-08-20 — Stage 1: data ingestion
+---
 
-**Branch:** `session/2026-08-20-stage1-data-ingestion`
+## 2. Stage 1 — Data ingestion
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage1-data-ingestion`
 
 **What was built:** `src/01_data_ingestion.py` — loads
 `data/cvd_synthetic_dataset_v0.2.csv`, verifies row count (100,000), column count (16), and
@@ -56,9 +79,11 @@ rates passed within tolerance on the first run — no anomalies to flag per §0.
 schema check passes, all four missingness-rate checks land within the ±2pp tolerance band
 (no `<-- ANOMALY` flags printed).
 
-## 2026-08-20 — Stage 2: preprocessing (imputation, encoding, sex-specific split)
+---
 
-**Branch:** `session/2026-08-20-stage2-preprocessing`
+## 3. Stage 2 — Preprocessing (imputation, encoding, sex-specific split)
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage2-preprocessing`
 
 **What was built:** `src/02_preprocessing.py` — loads and re-verifies the raw CSV (§3),
 imputes missing values per sex cohort, documents the encoding step, splits each sex cohort
@@ -96,9 +121,11 @@ each sex: split sizes reconstruct the cohort exactly, no `patient_id` appears in
 partition, no residual NaNs in the imputed columns after the split, and event rate stays
 within 1pp of the full cohort in every partition.
 
-## 2026-08-20 — Stage 3: feature selection
+---
 
-**Branch:** `session/2026-08-20-stage3-feature-selection`
+## 4. Stage 3 — Feature selection
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage3-feature-selection`
 
 **What was built:** `src/03_feature_selection.py` — per sex, on the training fold only:
 Pearson/point-biserial multicollinearity screening (§5.1), L1-penalised Cox LASSO via
@@ -148,9 +175,11 @@ For each sex: no multicollinearity-dropped predictor leaks into the final select
 LASSO selects a non-empty feature set, and validation C-index at the chosen alpha is 0.807
 (male) / 0.824 (female).
 
-## 2026-08-20 — Stage 4: baselines (Kaplan-Meier, CoxPH, QRISK3-style score)
+---
 
-**Branch:** `session/2026-08-20-stage4-baselines`
+## 5. Stage 4 — Baselines (Kaplan-Meier, CoxPH, QRISK3-style score)
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage4-baselines`
 
 **What was built:** `src/04_baselines.py` — per sex: a descriptive Kaplan-Meier curve over
 the full cohort (train+val+test recombined, saved to `results/figures/km_curve_{sex}.png`),
@@ -159,8 +188,8 @@ fold using Stage 3's selected feature set, and the §7 simplified QRISK3-style s
 formula, not fitted, uses its own predictor set regardless of Stage 3's LASSO selection).
 Predictions for all three splits, both models, written to
 `results/tables/stage4_baseline_predictions_{sex}.csv`. Per §11's architecture, formal
-scoring (C-index, Uno's C, Brier score, calibration, bootstrap 95% CIs — §8/§12) is deferred
-to Stage 5 (`07_evaluation.py`), applied uniformly across all six models rather than
+scoring (C-index, Uno's C, Brier score, calibration, bootstrap 95% CIs — §8/§12) was deferred
+to Stage 7 (`07_evaluation.py`), applied uniformly across all six models rather than
 duplicated here.
 
 **Major deviation from spec, investigated, raised to and resolved by the user before coding
@@ -176,7 +205,7 @@ Ltd.'s own LGPL-licensed reference implementation
 (github.com/sisuhealthgroup/qrisk3/blob/master/src/lib/original/qrisk3.c, mirroring
 qrisk.org/svn.clinrisk.co.uk, released explicitly "to enable others to implement the
 algorithm faithfully"), restricted to this dataset's available predictors per §7's removal
-list. My Python port was validated against ClinRisk's own published test suite (8 age×sex×
+list. This Python port was validated against ClinRisk's own published test suite (8 age×sex×
 cholesterol-ratio cases, white ethnicity, no comorbidities) before restriction — all 8 matched
 to within 0.05 percentage points. Corroborating evidence this is a reasonable proxy for
 Burns et al.'s actual approach: their reported baseline survival values (0.977/0.989) match
@@ -215,11 +244,13 @@ for the C-index but not for §8's integrated Brier score / calibration plot, whi
 [0, 1] for every patient, mean 0.9209 (male) matches the KM 10-year survival of 0.9205, and
 correlates 0.87 with the existing risk score (expected — related but non-identical
 quantities). `qrisk3_style_score` already encodes a 10-year probability (÷100), so it needed
-no change. Stage 5's RSF/GBSA outputs are built with both quantities from the start.
+no change. Stage 5's RSF/GBSA outputs were built with both quantities from the start.
 
-## 2026-08-20 — Stage 5: survival ML models (RSF, GBSA)
+---
 
-**Branch:** `session/2026-08-20-stage5-ml-models`
+## 6. Stage 5 — Survival ML models (RSF, GBSA)
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage5-ml-models`
 
 **What was built:** `src/05_survival_ml_models.py` — per sex, on Stage 3's selected feature
 set (§5.4): Random Survival Forest and Gradient-Boosting Survival Analysis
@@ -257,6 +288,7 @@ full since it changed the tuning grid (§14):**
    set.
 
 **Results:**
+
 | Sex | Model | Best hyperparameters | Val C-index | Test C-index (informal) |
 |---|---|---|---|---|
 | male | RSF | n_estimators=300, max_depth=8 | 0.8052 | 0.8073 |
@@ -290,9 +322,11 @@ aggregation (summation order across threads isn't guaranteed identical run-to-ru
 reproducibility failure. GBSA (single-threaded) matched byte-for-byte. Discarded the
 regenerated CSVs rather than committing meaningless-diff noise.
 
-## 2026-08-20 — Stage 6: deep survival models (DeepSurv, DeepHit)
+---
 
-**Branch:** `session/2026-08-20-stage6-deep-survival-models`
+## 7. Stage 6 — Deep survival models (DeepSurv, DeepHit)
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage6-deep-survival-models`
 
 **Environment note:** the Python-3.14 compatibility risk flagged at project setup did not
 materialise — `torch==2.13.0` (with a native `cp314` wheel) and `pycox==0.3.0` both installed
@@ -316,6 +350,7 @@ experience), confirmed a single DeepSurv fit took ~1.7 seconds with early stoppi
 epochs), then ran the full grid × both models × both sexes in 36.7 seconds total wall-clock.
 
 **Results:**
+
 | Sex | Model | Best hyperparameters | Val C-index | Test C-index (informal) |
 |---|---|---|---|---|
 | male | DeepSurv | hidden=[64,64], lr=0.001 | 0.8066 | 0.8089 |
@@ -337,9 +372,11 @@ every patient in every split; row counts match each sex's full cohort size; mean
 `*_survival_at_10y` (0.9196 male DeepHit, 0.9424 female DeepHit) is consistent with the KM
 and CoxPH 10-year survival estimates from Stage 4.
 
-## 2026-08-20 — Patch (Stages 4-6): survival curves for Stage 7's integrated Brier score
+---
 
-**Branch:** `session/2026-08-20-stage7-evaluation`
+## 8. Patch (Stages 4-6) — survival curves for Stage 7's integrated Brier score
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage7-evaluation`
 
 **What was found, before writing any Stage 7 code:** §8's integrated Brier score (Graf et
 al., 1999) needs each model's predicted survival probability at *multiple* time points (a
@@ -356,7 +393,7 @@ by the new `survival_curve_at_grid()` and removed rather than left as dead code.
 
 **QRISK3-style score is deliberately excluded from this patch — not an oversight.** It is a
 fixed, single-horizon clinical formula (§7), not a fitted survival model, so it has no
-natural multi-year curve. Stage 7 will compute the standard integrated Brier score for the
+natural multi-year curve. Stage 7 computes the standard integrated Brier score for the
 five curve-producing models, and a single-timepoint (year-10) Brier score for QRISK3-style
 specifically, clearly labelled as such in the results table — a direct consequence of §7's
 own description of QRISK3 as fixed-horizon, not a new modelling assumption invented here.
@@ -367,7 +404,8 @@ like a stray watermark rather than a normal figure title — citations belong in
 comments/docstrings, never on a rendered figure that could end up in the thesis. Title is now
 just `"Kaplan-Meier — {sex} cohort (descriptive only)"`. Checked the rest of `src/` for
 similar spec-reference text baked into `set_title`/`suptitle`/`ax.text` calls — none found
-elsewhere. Will keep Stage 7's calibration plot titles clean on the same principle.
+elsewhere. Standing rule going forward: no spec/AI-assistant references ever get baked into a
+rendered chart, for any stage.
 
 **Verification:** re-ran all three patched stages end-to-end (Stage 5 in the background,
 ~45 minutes given its tuning grid). All exit 0. Every new `*_survival_at_{t}y` column is
@@ -380,9 +418,11 @@ parallelism.
 
 **Open questions:** none blocking.
 
-## 2026-08-20 — Stage 7: evaluation (C-index, Uno's C, integrated Brier score, calibration)
+---
 
-**Branch:** `session/2026-08-20-stage7-evaluation`
+## 9. Stage 7 — Evaluation (C-index, Uno's C, integrated Brier score, calibration)
+
+**Date:** 2026-08-20 · **Branch:** `session/2026-08-20-stage7-evaluation`
 
 **What was built:** `src/07_evaluation.py` — on the test set only (§6), per sex, for all six
 models: Harrell's C-index (`concordance_index_censored`), Uno et al.'s (2011) IPCW
@@ -405,9 +445,9 @@ before writing the relevant code (§14):**
    literature (the last survival-curve step doesn't change between 9.99 and 10.0, so this is
    exact, not an approximation, for every curve-producing model).
 2. **QRISK3-style gets a single-timepoint Brier score, not integrated** — it has no
-   multi-year curve (§7: fixed formula, not a fitted model; see the Stages 4-6 patch above).
-   Labelled `brier_score_type = "single_timepoint_9.99y"` in the output table so this isn't
-   silently presented as equivalent to the other five models' `"integrated"` score.
+   multi-year curve (§7: fixed formula, not a fitted model; see Section 8 above). Labelled
+   `brier_score_type = "single_timepoint_9.99y"` in the output table so this isn't silently
+   presented as equivalent to the other five models' `"integrated"` score.
 
 **Runtime:** learned from Stage 5 — timed a small-scale (50-resample, 1-model) version first
 (~42ms/resample), projected the full 1,000×6×2 run at ~500 seconds before committing to it.
@@ -437,3 +477,8 @@ three metrics fall within their plausible [0, 1] range for every model/sex; ever
 estimate falls within its own bootstrap 95% CI (verified programmatically, not just by eye);
 CoxPH's and QRISK3-style's self-comparison deltas are correctly absent (not zero — genuinely
 skipped) from the output table.
+
+---
+
+*End of journal. Stage 8 (SHAP + LIME explainability) is the last pipeline stage remaining
+before the results dashboard.*
