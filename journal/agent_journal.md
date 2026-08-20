@@ -280,3 +280,12 @@ C-index) — expected overfitting from unconstrained trees on a modest per-leaf 
 0. No NaNs in either risk-score column; both survival-at-10y columns fall within [0, 1] for
 every patient in every split; row counts match each sex's full cohort size (50,503 male /
 49,497 female).
+
+**Post-merge verification note:** re-ran Stage 5 fresh from `main` to confirm reproducibility.
+All printed metrics (grid C-index at every combo, best hyperparameters, test C-index) matched
+the committed run exactly. The per-patient CSVs showed a harmless diff confined to the RSF
+columns only, at the ~15th decimal digit (e.g. `0.45010716018211305` vs `...316`) — expected
+floating-point non-associativity from `RandomSurvivalForest`'s `n_jobs=-1` parallel tree
+aggregation (summation order across threads isn't guaranteed identical run-to-run), not a
+reproducibility failure. GBSA (single-threaded) matched byte-for-byte. Discarded the
+regenerated CSVs rather than committing meaningless-diff noise.
