@@ -335,3 +335,54 @@ It applies to every future session in this repository, not just the one that add
    (tables/figures from `results/`). Confirm the deployment target with the user at that time
    before deploying — this is a later, separate session, not part of initial pipeline
    development.
+
+## 16. Resolved spec clarifications (running log, binding — supersedes the sections referenced)
+
+Each of these was investigated, raised to the user, and resolved with an explicit decision
+before code was written, per §14. Full reasoning and evidence for each is in
+`journal/agent_journal.md` under the stage named; this section exists so a fresh session
+reads the *resolved* interpretation directly here instead of re-deriving or re-litigating it.
+Do not revisit these without a new, explicit reason to.
+
+1. **"14 predictors" (§4, §5.1) → 12, resolved at Stage 3.** The dataset only has 12 columns
+   usable as survival-model predictors — the "14" figure only works by also counting
+   `time_to_event_or_censoring` and `heart_attack_or_stroke_occurred` (the outcome itself) as
+   predictors. Treated as a spec wording slip. All feature-selection, baseline, and modelling
+   stages use the 12 actual clinical/physiological columns.
+2. **`smoker` / `family_history_of_cardiovascular_disease` "unknown category" (§4), resolved
+   at Stage 2.** These columns have zero NaNs — the 1→0 flip (p=0.30) is a silent bit-flip
+   with no missing-value marker, so there is nothing to impute or flag. Left untouched;
+   documented as known non-differential measurement error at p=0.30, not treated as missing
+   data.
+3. **Imputation order relative to the 70/15/15 split (§4 vs §11), resolved at Stage 2.**
+   Imputation is computed per sex on the whole cohort *before* the split (matching §11's
+   literal script description), not from the training fold only — an acknowledged, minor
+   leak accepted for a low-capacity statistic like a median.
+4. **FEV1/COPD multicollinearity tie-break (§5.1), resolved at Stage 3.** Neither variable has
+   a QRISK3-basis tie-break. Rule applied: recompute the correlation on complete cases only
+   (excluding the imputed majority of FEV1); if it stays ≥0.80, drop the binary COPD flag and
+   keep the richer continuous FEV1; if it drops meaningfully below 0.80, drop FEV1 and keep
+   COPD instead. In this dataset the complete-case correlation dropped below threshold for
+   both sexes (−0.777 male / −0.787 female vs. −0.809 / −0.808 full-sample), so **FEV1 was
+   dropped and COPD kept** in both cohorts.
+5. **QRISK3-style score coefficients (§7), resolved at Stage 4 — the most significant
+   deviation so far.** §7 asks to reconstruct "the exact simplified variant Burns, Richardson
+   and Driessens (2024) used to simulate the outcome." Checked directly (paper text +
+   Zenodo deposit): their exact coefficients were never published anywhere and are
+   permanently unrecoverable. **The QRISK3-style score in this project instead uses the real,
+   original QRISK3-2017 coefficients** (Hippisley-Cox, Coupland and Brindle, 2017), sourced
+   from ClinRisk Ltd.'s own LGPL-licensed reference implementation
+   (github.com/sisuhealthgroup/qrisk3, mirroring qrisk.org/svn.clinrisk.co.uk — released
+   explicitly "to enable others to implement the algorithm faithfully"), restricted to this
+   dataset's available predictors per §7's removal list, and validated against ClinRisk's own
+   published test cases before restriction (8/8 matched within 0.05pp). Corroborating
+   evidence this is a reasonable proxy: Burns et al.'s reported 10-year baseline survival
+   (0.977 male / 0.989 female) matches the real QRISK3 survivor constants
+   (0.977268.../0.988876...) to 3 decimal places.
+6. **QRISK3-style score at out-of-validated-range inputs, resolved at Stage 4.** QRISK3 is
+   only officially validated for ages 25–84; 11.1% of this dataset is under 25. Combined with
+   this dataset's unbounded synthetic BMI (values down to 6), the fractional-polynomial
+   age/BMI terms saturate the score at exactly 100.0 for a small number of patients (13 total,
+   0.013% of the dataset). Left unclipped and unexcluded deliberately — applied identically
+   to every patient, no arbitrary clip threshold invented, so the QRISK3-style baseline covers
+   the same population as the other five models.
