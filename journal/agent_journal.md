@@ -21,6 +21,7 @@ questions, and anything unexpected encountered — plus the sanity check that cl
 8. [Patch — survival curves for Stage 7's integrated Brier score](#8-patch-stages-4-6--survival-curves-for-stage-7s-integrated-brier-score)
 9. [Stage 7 — Evaluation](#9-stage-7--evaluation-c-index-unos-c-integrated-brier-score-calibration)
 10. [Stage 8 — Explainability (SHAP, LIME, stability testing)](#10-stage-8--explainability-shap-lime-stability-testing)
+11. [Results dashboard (GitHub Pages)](#11-results-dashboard-github-pages)
 
 ---
 
@@ -459,17 +460,39 @@ subplots its own axis scale, making cross-model visual comparison harder than it
 be. Changed to a single shared scale (max across all 6 models' curves) across the whole grid.
 
 **Notable finding, worth carrying into the thesis discussion (§0.7 — not smoothed over):**
-QRISK3-style shows the *best* discrimination of all six models in both sexes (C-index 0.820
-male / 0.823 female vs CoxPH's 0.810 / 0.819) but is clearly and substantially the *worst*
-calibrated — its Brier score 95% CI doesn't even overlap the other five models' (male:
-QRISK3 [0.0548, 0.0627] vs CoxPH [0.0360, 0.0422]; same pattern in females). This is a
-genuine, statistically distinguishable discrimination/calibration split, not noise from a
-single bootstrap draw — a real example of the "improvement or honest non-improvement...
-stated with effect size and CI" §12 asks for, and worth flagging explicitly rather than
-just reporting the headline C-index. Among the five data-fitted models, all differences vs
-CoxPH are small and every CI comfortably contains zero — no fitted model shows a
-statistically distinguishable improvement over the CoxPH baseline in either metric, for
-either sex.
+QRISK3-style has the highest point-estimate discrimination of all six models in both sexes
+(C-index 0.820 male / 0.823 female vs CoxPH's 0.810 / 0.819), and is clearly and
+substantially the worst calibrated in both sexes — its Brier score 95% CI doesn't overlap
+the other five models' in either sex (male: QRISK3 [0.0548, 0.0627] vs CoxPH
+[0.0360, 0.0422]; female: QRISK3 [0.0375, 0.0441] vs CoxPH [0.0238, 0.0291]). The
+calibration gap is a genuine, statistically distinguishable finding in both sexes. The
+discrimination advantage, however, is statistically distinguishable from CoxPH only for
+males (ΔC-index +0.0098, 95% CI [0.0030, 0.0168]) — for females the same comparison's CI
+touches zero (Δ+0.0043, 95% CI [−0.0008, 0.0122]), so it's directional there, not
+significant. This is a real example of the "improvement or honest non-improvement...
+stated with effect size and CI" §12 asks for.
+
+**Correction (2026-08-21, found while building the results dashboard — see
+`src/09_build_dashboard.py`):** the paragraph above originally claimed, for the four
+data-fitted ML/DL models (RSF, GBSA, DeepSurv, DeepHit) vs CoxPH, that "all differences...
+are small and every CI comfortably contains zero — no fitted model shows a statistically
+distinguishable improvement... in either metric, for either sex." **The "no significant
+improvement" part is correct; the implication that nothing was significant is not.** Caught
+by cross-checking the dashboard's computed significance markers against the raw CSV rather
+than trusting the earlier prose summary — exactly the kind of check §0.7 exists for. The
+accurate picture: none of the four ever shows a statistically significant *improvement* over
+CoxPH on any metric, in either sex, but several show a statistically significant (small)
+*regression*: for males, GBSA (ΔBrier +0.00072, 95% CI [0.00033, 0.00111]) and DeepHit
+(ΔBrier +0.00088, 95% CI [0.00037, 0.00138]) calibrate significantly worse than CoxPH; for
+females, RSF (ΔC-index −0.0065, 95% CI [−0.0111, −0.0012]), GBSA (ΔC-index −0.0051, 95% CI
+[−0.0091, −0.0014]), and DeepHit (ΔC-index −0.0079, 95% CI [−0.0131, −0.0024]) all
+discriminate significantly worse than CoxPH (the same three also show significantly worse
+Uno's C). DeepSurv is the only one of the four that never differs significantly from CoxPH
+on any metric, in either sex — the closest match to the linear baseline. This is a more
+interesting and more honest finding than "no significant differences": CoxPH's simple
+linear model is a genuinely hard baseline to beat on this dataset, and several of the more
+complex models measurably underperform it on at least one axis rather than merely failing
+to improve on it.
 
 **Open questions:** none blocking.
 
@@ -562,5 +585,63 @@ finding that age is a strong, uncontroversial risk driver.
 
 ---
 
-*End of journal. Stage 8 was the last modelling pipeline stage — the results dashboard is
-next.*
+## 11. Results dashboard (GitHub Pages)
+
+**Date:** 2026-08-21 · **Branch:** `session/2026-08-21-results-dashboard`
+
+**What was built:** `src/09_build_dashboard.py` (an added stage beyond §11's original 8 —
+see CLAUDE.md §15.5) — reads Stage 3/7/8's actual output tables (never hand-transcribed) and
+renders a single self-contained static page to `docs/index.html` plus `docs/figures/`, for
+GitHub Pages (static files only, `main` branch `/docs` folder — a one-time manual toggle in
+repo Settings is the only step this session can't do itself, no repo admin access). Sections:
+the six-model × two-sex results table with bootstrap CIs, per-sex selected predictors, all
+eight Stage 4/7/8 figures, a SHAP-stability/SHAP-LIME-agreement summary table, and a written
+findings section. Design follows the project's dataviz skill (system-sans type, tabular-nums
+in the results table, `prefers-color-scheme` light/dark, no external requests/CDNs).
+
+**A real error was found and corrected while building this, not just a UI bug (§0.7):**
+cross-checking the dashboard's computed "95% CI excludes zero" significance markers against
+the raw `stage7_evaluation_summary.csv` surfaced that the Stage 7 journal entry's claim —
+"all differences [vs CoxPH] are small and every CI comfortably contains zero... no fitted
+model shows a statistically distinguishable improvement... in either metric, for either
+sex" — was inaccurate. The "no improvement" part was right; the implication that nothing was
+significant was not. Corrected in place in Stage 7's journal entry (§10 above) with the full
+per-model, per-sex breakdown: no fitted ML/DL model ever improves on CoxPH significantly, but
+several regress significantly (male: GBSA and DeepHit calibrate worse; female: RSF, GBSA, and
+DeepHit all discriminate worse). DeepSurv is the only one of the four that never differs
+significantly from CoxPH on anything, in either sex. This is now also written up in the
+dashboard's findings section. Left as a visible correction rather than quietly editing the
+original claim away, since the process of catching it is itself relevant to how the pipeline
+was audited.
+
+**Two build issues caught and fixed before shipping, neither a data problem:**
+1. An unused `--accent-2` CSS custom property from an earlier design pass (had considered,
+   then dropped, colour-coding the two sex sections) was left declared but unreferenced —
+   removed rather than left as dead code.
+2. Figures were initially marked `loading="lazy"`; because the page is short (8 images,
+   ~1MB total — no real lazy-load benefit) this caused `document.body.scrollHeight` to
+   under-report before the images entered the viewport, which looked like a rendering bug
+   (large blank gap) when visually checking the page. Removed lazy loading — simpler, and
+   avoids the same false alarm for anyone else scrolling quickly.
+
+**Verification:** ran the build script, then visually checked the rendered page end-to-end
+in a local browser (Chrome, via a temporary `python -m http.server` — the browser extension
+can't load `file://` URLs directly) — header, ethics notice, results table with correct
+significance markers, feature lists, all eight figures, stability table, findings, and
+footer all render correctly in dark mode (system default on this machine). Light mode was
+not separately screenshotted — its CSS values are the skill's own pre-validated palette
+tokens, not custom colours, so it wasn't re-validated with the palette script; worth a quick
+visual pass before treating it as fully confirmed, if that matters for submission.
+
+**Open questions:** whether to also spot-check light mode visually, and whether the user
+wants the GitHub Pages toggle flipped now or held until they're ready to share the link.
+
+**Test/sanity check (§10.4):** ran `python src/09_build_dashboard.py` end-to-end — exits 0,
+`docs/index.html` + 8 figures written; HTML tag balance checked programmatically (div/
+section/table open vs close counts match); all six-model × two-sex table cells populated
+with no missing values.
+
+---
+
+*End of journal. Stage 8 was the last modelling pipeline stage; the results dashboard (§11
+above) is built and pending the GitHub Pages toggle.*

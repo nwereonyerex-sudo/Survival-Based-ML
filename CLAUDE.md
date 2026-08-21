@@ -329,12 +329,14 @@ It applies to every future session in this repository, not just the one that add
      partially-working code, even temporarily.
 4. **GitHub is the remote for this repo.** Push session branches and merge to `main` there once
    approved. Do not force-push `main`.
-5. **Deployment (results dashboard).** Once the full pipeline (§11 Stages 1–6, i.e.
-   `src/01_*.py` through `src/08_*.py`) is built and every §12 acceptance-criteria box is
-   checked, build a small dashboard presenting the final six-model × two-sex results
-   (tables/figures from `results/`). Confirm the deployment target with the user at that time
-   before deploying — this is a later, separate session, not part of initial pipeline
-   development.
+5. **Deployment (results dashboard) — done 2026-08-21, target: GitHub Pages.** Built by
+   `src/09_build_dashboard.py` (an added stage beyond §11's original 8 — no spec section
+   covers it, so it's documented here and in the journal rather than folded into §11's list).
+   Reads the actual Stage 3/7/8 output tables and renders a static, self-contained page to
+   `docs/index.html` (+ `docs/figures/`) — GitHub Pages serves static files only. To go live:
+   in the GitHub repo, Settings → Pages → Source: Deploy from branch → `main`, folder `/docs`
+   (one-time manual step, not automatable without repo admin access this session doesn't
+   have). Re-run the script and re-commit `docs/` whenever `results/` changes.
 
 ## 16. Resolved spec clarifications (running log, binding — supersedes the sections referenced)
 
