@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Survival-Based ML for 10-Year CVD Risk</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --gridline: #e1e0d9;
+  --border: rgba(11,11,11,0.10);
+  --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.55;
+}
+.wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+header.hero { margin-bottom: 2.5rem; }
+h1 { font-size: 1.9rem; margin: 0 0 0.4rem; }
+.subtitle { color: var(--text-secondary); font-size: 1.05rem; margin: 0 0 1rem; }
+.repo-link { font-size: 0.9rem; }
+.repo-link a { color: var(--accent); text-decoration: none; }
+.repo-link a:hover { text-decoration: underline; }
+section { margin: 3rem 0; }
+h2 {
+  font-size: 1.3rem; border-bottom: 1px solid var(--gridline);
+  padding-bottom: 0.5rem; margin-bottom: 1rem;
+}
+h3 { font-size: 1.05rem; color: var(--text-secondary); margin: 1.75rem 0 0.75rem; }
+p { color: var(--text-secondary); }
+.ethics {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1rem 1.25rem; font-size: 0.92rem;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th {
+  text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--text-muted); border-bottom: 1px solid var(--gridline); padding: 0.5rem 0.6rem;
+}
+td { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--gridline); vertical-align: top; }
+td.num { font-variant-numeric: tabular-nums; }
+tr.sex-header td {
+  padding-top: 1.5rem; font-weight: 600; border-bottom: 1px solid var(--text-muted);
+  color: var(--text-primary);
+}
+tr.delta-row td { border-bottom: 1px solid var(--gridline); padding-top: 0; color: var(--text-muted); font-size: 0.85rem; }
+td.delta { text-align: left; }
+span.significant { font-weight: 600; color: var(--text-primary); }
+.legend { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; }
+.feature-list { columns: 2; column-gap: 2rem; font-size: 0.9rem; color: var(--text-secondary); }
+.figure-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+figure {
+  margin: 0; flex: 1 1 380px; background: #ffffff; border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.6rem; text-align: center;
+}
+figure img { max-width: 100%; height: auto; border-radius: 4px; }
+figcaption { font-size: 0.8rem; color: #52514e; margin-top: 0.4rem; }
+.stability-table td { font-size: 0.85rem; }
+.findings li { margin-bottom: 0.9rem; color: var(--text-secondary); }
+footer {
+  margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--gridline);
+  font-size: 0.85rem; color: var(--text-muted);
+}
+footer a { color: var(--accent); }
+code { font-size: 0.85em; background: var(--surface); padding: 0.1em 0.35em; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Survival-Based ML for 10-Year Heart Attack/Stroke Risk</h1>
+  <p class="subtitle">Benchmarking six sex-stratified survival models — CoxPH, a
+  QRISK3-style clinical score, Random Survival Forest, Gradient-Boosting Survival Analysis,
+  DeepSurv, and DeepHit — on discrimination, calibration, and explainability.</p>
+  <p class="repo-link"><a href="https://github.com/nwereonyerex-sudo/Survival-Based-ML">https://github.com/nwereonyerex-sudo/Survival-Based-ML</a></p>
+</header>
+
+<section id="ethics">
+  <div class="ethics">
+    <strong>Data and ethics.</strong> Trained and evaluated exclusively on
+    Burns, Richardson and Driessens (2024)'s CC0-licensed, 100%-synthetic primary-care
+    dataset (doi: 10.3310/nihropenres.13651.1). No real, identifiable, or non-synthetic
+    patient data was used at any stage.
+  </div>
+</section>
+
+<section id="results">
+  <h2>Results — six models × two sexes</h2>
+  <p>Harrell's C-index and Uno's IPCW C-statistic (discrimination), and the Brier score
+  (calibration), all with bootstrap 95% confidence intervals from 1,000 resamples of the held-out
+  test set. The row beneath each model shows its effect size vs. the sex-specific CoxPH
+  baseline.</p>
+  <table>
+    <thead>
+      <tr><th>Model</th><th>C-index (95% CI)</th><th>Uno's C (95% CI)</th><th>Brier score (95% CI)</th></tr>
+    </thead>
+    <tbody>
+<tr class="sex-header"><td colspan="4">Male cohort</td></tr>
+<tr><td>CoxPH</td><td class="num">0.810 (0.794–0.824)</td><td class="num">0.813 (0.796–0.828)</td><td class="num">0.0390 (0.0360–0.0422)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta">— (baseline)</td></tr>
+<tr><td>QRISK3-style</td><td class="num">0.820 (0.806–0.834)</td><td class="num">0.824 (0.810–0.839)</td><td class="num">0.0588 (0.0548–0.0628)¹</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta">— (baseline)</td></tr>
+<tr><td>Random Survival Forest</td><td class="num">0.807 (0.792–0.822)</td><td class="num">0.811 (0.794–0.826)</td><td class="num">0.0392 (0.0362–0.0424)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span>-0.003 vs CoxPH</span></td></tr>
+<tr><td>Gradient-Boosting Survival</td><td class="num">0.809 (0.794–0.823)</td><td class="num">0.813 (0.797–0.828)</td><td class="num">0.0398 (0.0366–0.0432)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span>-0.001 vs CoxPH</span></td></tr>
+<tr><td>DeepSurv</td><td class="num">0.809 (0.793–0.824)</td><td class="num">0.812 (0.795–0.827)</td><td class="num">0.0392 (0.0362–0.0424)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span>-0.001 vs CoxPH</span></td></tr>
+<tr><td>DeepHit</td><td class="num">0.808 (0.793–0.823)</td><td class="num">0.812 (0.795–0.827)</td><td class="num">0.0399 (0.0367–0.0432)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span>-0.001 vs CoxPH</span></td></tr>
+<tr class="sex-header"><td colspan="4">Female cohort</td></tr>
+<tr><td>CoxPH</td><td class="num">0.819 (0.801–0.838)</td><td class="num">0.821 (0.801–0.839)</td><td class="num">0.0265 (0.0238–0.0291)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta">— (baseline)</td></tr>
+<tr><td>QRISK3-style</td><td class="num">0.823 (0.806–0.841)</td><td class="num">0.826 (0.807–0.843)</td><td class="num">0.0407 (0.0375–0.0441)¹</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta">— (baseline)</td></tr>
+<tr><td>Random Survival Forest</td><td class="num">0.813 (0.794–0.831)</td><td class="num">0.815 (0.795–0.833)</td><td class="num">0.0266 (0.0239–0.0292)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span class="significant">-0.006 vs CoxPH †</span></td></tr>
+<tr><td>Gradient-Boosting Survival</td><td class="num">0.814 (0.795–0.833)</td><td class="num">0.817 (0.796–0.836)</td><td class="num">0.0267 (0.0240–0.0294)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span class="significant">-0.005 vs CoxPH †</span></td></tr>
+<tr><td>DeepSurv</td><td class="num">0.815 (0.797–0.833)</td><td class="num">0.817 (0.797–0.835)</td><td class="num">0.0266 (0.0239–0.0293)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span>-0.004 vs CoxPH</span></td></tr>
+<tr><td>DeepHit</td><td class="num">0.811 (0.794–0.829)</td><td class="num">0.813 (0.794–0.831)</td><td class="num">0.0267 (0.0241–0.0294)</td></tr>
+<tr class="delta-row"><td></td><td colspan="3" class="num delta"><span class="significant">-0.008 vs CoxPH †</span></td></tr>
+    </tbody>
+  </table>
+  <p class="legend">† 95% CI on the delta excludes zero (statistically distinguishable
+  from the CoxPH baseline). ¹ QRISK3-style is a fixed single-horizon clinical formula, not
+  a fitted survival model — its Brier score is evaluated at a single ~10-year timepoint,
+  not integrated over the full follow-up like the other five models.</p>
+</section>
+
+<section id="features">
+  <h2>Selected predictors per sex</h2>
+  <p>Feature selection (multicollinearity screening + validation-tuned LASSO) ran
+  independently per sex; the surviving set is used identically across CoxPH, RSF, GBSA,
+  DeepSurv, and DeepHit for that sex. QRISK3-style uses its own fixed clinical predictor set
+  regardless.</p>
+  <h3>Male cohort</h3>
+  <ul class="feature-list"><li>age</li><li>atrial fibrillation</li><li>chronic kidney disease</li><li>diabetes</li><li>family history of cardiovascular disease</li><li>hypertension treated</li><li>rheumatoid arthritis</li><li>smoker</li><li>systolic blood pressure</li></ul>
+  <h3>Female cohort</h3>
+  <ul class="feature-list"><li>age</li><li>atrial fibrillation</li><li>chronic kidney disease</li><li>chronic obstructive pulmonary disorder</li><li>diabetes</li><li>family history of cardiovascular disease</li><li>hypertension treated</li><li>rheumatoid arthritis</li><li>smoker</li><li>systolic blood pressure</li></ul>
+</section>
+
+<section id="figures">
+  <h2>Descriptive survival, calibration, and explainability</h2>
+<h3>Kaplan–Meier survival (descriptive)</h3><div class="figure-row"><figure><img src="figures/km_curve_male.png" alt="Kaplan–Meier survival (descriptive) — male"><figcaption>Male cohort</figcaption></figure><figure><img src="figures/km_curve_female.png" alt="Kaplan–Meier survival (descriptive) — female"><figcaption>Female cohort</figcaption></figure></div>
+<h3>Calibration — decile-grouped, observed vs predicted 10-year risk</h3><div class="figure-row"><figure><img src="figures/calibration_male.png" alt="Calibration — decile-grouped, observed vs predicted 10-year risk — male"><figcaption>Male cohort</figcaption></figure><figure><img src="figures/calibration_female.png" alt="Calibration — decile-grouped, observed vs predicted 10-year risk — female"><figcaption>Female cohort</figcaption></figure></div>
+<h3>SHAP global feature importance, compared to CoxPH coefficients</h3><div class="figure-row"><figure><img src="figures/shap_summary_male.png" alt="SHAP global feature importance, compared to CoxPH coefficients — male"><figcaption>Male cohort</figcaption></figure><figure><img src="figures/shap_summary_female.png" alt="SHAP global feature importance, compared to CoxPH coefficients — female"><figcaption>Female cohort</figcaption></figure></div>
+<h3>SHAP dependence — age and systolic blood pressure</h3><div class="figure-row"><figure><img src="figures/shap_dependence_male.png" alt="SHAP dependence — age and systolic blood pressure — male"><figcaption>Male cohort</figcaption></figure><figure><img src="figures/shap_dependence_female.png" alt="SHAP dependence — age and systolic blood pressure — female"><figcaption>Female cohort</figcaption></figure></div>
+</section>
+
+<section id="stability">
+  <h2>SHAP stability and SHAP/LIME agreement</h2>
+  <p>Unstable = the predictor's SHAP-importance rank shifted by more than 2 positions across
+  two independent bootstrap resamples of the training fold. Top-3 overlap = mean count of
+  shared features between each patient's top-3 SHAP and top-3 LIME features (out of 3).</p>
+  <table class="stability-table">
+    <tbody>
+<tr><td>Male cohort</td><td>Random Survival Forest: <strong>1/9</strong> unstable, top-3 overlap <strong>1.38/3</strong></td><td>Gradient-Boosting Survival: <strong>2/9</strong> unstable, top-3 overlap <strong>2.06/3</strong></td><td>DeepSurv: <strong>7/9</strong> unstable, top-3 overlap <strong>1.68/3</strong></td><td>DeepHit: <strong>6/9</strong> unstable, top-3 overlap <strong>0.53/3</strong></td></tr>
+<tr><td>Female cohort</td><td>Random Survival Forest: <strong>3/10</strong> unstable, top-3 overlap <strong>1.73/3</strong></td><td>Gradient-Boosting Survival: <strong>3/10</strong> unstable, top-3 overlap <strong>2.23/3</strong></td><td>DeepSurv: <strong>6/10</strong> unstable, top-3 overlap <strong>1.40/3</strong></td><td>DeepHit: <strong>5/10</strong> unstable, top-3 overlap <strong>1.50/3</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="findings">
+  <h2>Notable findings</h2>
+  <ul class="findings">
+    <li><strong>QRISK3-style leads discrimination but is clearly the worst-calibrated model,
+    in both sexes.</strong> Its C-index point estimate is highest in both sexes, and its
+    Brier score's 95% CI does not overlap any of the other five models' in either sex — a
+    genuine discrimination/calibration split, not sampling noise. The discrimination
+    advantage itself is only statistically significant for males, though — for females the
+    same comparison's confidence interval touches zero.</li>
+    <li><strong>CoxPH is a hard baseline to beat: none of the four fitted ML/DL models
+    significantly improves on it, and several significantly underperform it.</strong> RSF,
+    GBSA, DeepSurv, and DeepHit never show a statistically significant <em>improvement</em>
+    over CoxPH on any metric, in either sex — but for males, GBSA and DeepHit calibrate
+    significantly <em>worse</em>; for females, RSF, GBSA, and DeepHit all discriminate
+    significantly worse. DeepSurv is the only one of the four that never differs
+    significantly from CoxPH on any metric, in either sex.</li>
+    <li><strong>Tree ensembles concentrate importance on age; CoxPH and the deep models
+    spread it across comorbidities.</strong> RSF and GBSA's SHAP importance is dominated by
+    age alone; CoxPH's coefficients and DeepSurv/DeepHit's SHAP values distribute more evenly
+    across diabetes, atrial fibrillation, family history, and treated hypertension —
+    consistent in both sexes.</li>
+    <li><strong>DeepSurv and DeepHit's explanations are considerably less stable than
+    RSF/GBSA's, despite similar predictive performance.</strong> The majority of predictors
+    for the two deep models shift rank materially across resampled training folds, and their
+    SHAP/LIME agreement is markedly lower — a real explainability-vs-performance tradeoff,
+    not visible from C-index alone.</li>
+  </ul>
+</section>
+
+<footer>
+  Full methodology, every resolved spec deviation, and the complete stage-by-stage
+  implementation journal: see <a href="https://github.com/nwereonyerex-sudo/Survival-Based-ML/blob/main/CLAUDE.md">CLAUDE.md</a> and
+  <a href="https://github.com/nwereonyerex-sudo/Survival-Based-ML/blob/main/journal/agent_journal.md">journal/agent_journal.md</a> in the
+  repository. Built from the pipeline's own output tables — not hand-transcribed.
+</footer>
+
+</div>
+</body>
+</html>
