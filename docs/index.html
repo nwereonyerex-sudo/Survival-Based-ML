@@ -15,6 +15,9 @@
   --gridline: #e1e0d9;
   --border: rgba(11,11,11,0.10);
   --accent: #2a78d6;
+  --risk-low: #2f7d52;
+  --risk-moderate: #a66a1e;
+  --risk-high: #b03a26;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -27,6 +30,9 @@
     --gridline: #2c2c2a;
     --border: rgba(255,255,255,0.10);
     --accent: #3987e5;
+    --risk-low: #5fbf87;
+    --risk-moderate: #d9a652;
+    --risk-high: #d9694a;
   }
 }
 * { box-sizing: border-box; }
@@ -39,6 +45,11 @@ body {
 }
 .wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
 header.hero { margin-bottom: 2.5rem; }
+.eyebrow {
+  display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 0.6rem;
+}
+.pulse-icon { width: 28px; height: auto; color: var(--accent); flex: none; }
 h1 { font-size: 1.9rem; margin: 0 0 0.4rem; }
 .subtitle { color: var(--text-secondary); font-size: 1.05rem; margin: 0 0 1rem; }
 .repo-link { font-size: 0.9rem; }
@@ -86,12 +97,58 @@ footer {
 }
 footer a { color: var(--accent); }
 code { font-size: 0.85em; background: var(--surface); padding: 0.1em 0.35em; border-radius: 4px; }
+
+.calc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem 1.75rem; }
+.warn-box { display: flex; gap: 0.9rem; align-items: flex-start; background: rgba(166,106,30,0.08); border: 1px solid rgba(166,106,30,0.35); border-radius: 8px; padding: 1rem 1.15rem; margin: 0 0 1.5rem; }
+.warn-icon { width: 20px; height: 20px; flex: none; margin-top: 0.15rem; color: var(--risk-moderate); }
+.warn-title { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); margin: 0 0 0.5rem; }
+.warn-list { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; color: var(--text-secondary); }
+.warn-list li { margin-bottom: 0.35rem; }
+.warn-list li:last-child { margin-bottom: 0; }
+.calc-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem; align-items: start; }
+@media (max-width: 720px) { .calc-grid { grid-template-columns: 1fr; } }
+.field-group { margin-bottom: 1.3rem; }
+.field-label { display: block; font-size: 0.72rem; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem; }
+.seg-control { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg-control button { font: inherit; font-weight: 600; font-size: 0.9rem; padding: 0.45rem 1.15rem; border: none; background: var(--page); color: var(--text-secondary); cursor: pointer; }
+.seg-control button + button { border-left: 1px solid var(--border); }
+.seg-control button[aria-pressed="true"] { background: var(--accent); color: #ffffff; }
+.num-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.num-field { flex: 1 1 130px; font-size: 0.85rem; color: var(--text-secondary); }
+.num-field input { width: 100%; font: inherit; font-variant-numeric: tabular-nums; padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: var(--page); color: var(--text-primary); margin-top: 0.3rem; }
+.num-field span.unit { font-size: 0.75rem; color: var(--text-muted); }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip { font: inherit; font-size: 0.83rem; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 999px; background: var(--page); color: var(--text-secondary); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+.gauge-panel { display: flex; flex-direction: column; align-items: center; }
+.gauge-svg { width: 100%; max-width: 260px; }
+.gauge-track-low { stroke: var(--risk-low); opacity: 0.35; }
+.gauge-track-moderate { stroke: var(--risk-moderate); opacity: 0.35; }
+.gauge-track-high { stroke: var(--risk-high); opacity: 0.35; }
+.gauge-needle { stroke: var(--text-primary); transition: transform 0.4s ease; transform-origin: 120px 120px; }
+.gauge-hub { fill: var(--text-primary); }
+.gauge-readout { text-align: center; margin-top: -2rem; }
+.gauge-value { font-weight: 700; font-size: 2rem; font-variant-numeric: tabular-nums; display: block; color: var(--text-primary); }
+.gauge-sub { font-size: 0.78rem; color: var(--text-muted); }
+.risk-pill { display: inline-block; margin-top: 0.6rem; padding: 0.25rem 0.8rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+.risk-pill.low { background: rgba(47,125,82,0.15); color: var(--risk-low); }
+.risk-pill.moderate { background: rgba(166,106,30,0.15); color: var(--risk-moderate); }
+.risk-pill.high { background: rgba(176,58,38,0.15); color: var(--risk-high); }
+.gauge-explainer { font-size: 0.78rem; color: var(--text-secondary); text-align: center; margin-top: 0.9rem; max-width: 28ch; }
+.gauge-caveat { font-size: 0.78rem; color: var(--text-muted); text-align: center; margin-top: 0.6rem; max-width: 28ch; }
+.gauge-caveat.is-warning { color: var(--risk-moderate); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .gauge-needle { transition: none; } }
+
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header class="hero">
+  <p class="eyebrow">
+    <svg class="pulse-icon" viewBox="0 0 64 24" aria-hidden="true"><path d="M1 12 H20 L25 2 L32 22 L37 12 H63" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Sex-stratified survival modelling
+  </p>
   <h1>Survival-Based ML for 10-Year Heart Attack/Stroke Risk</h1>
   <p class="subtitle">Benchmarking six sex-stratified survival models — CoxPH, a
   QRISK3-style clinical score, Random Survival Forest, Gradient-Boosting Survival Analysis,
@@ -164,6 +221,288 @@ code { font-size: 0.85em; background: var(--surface); padding: 0.1em 0.35em; bor
   <h3>Female cohort</h3>
   <ul class="feature-list"><li>age</li><li>atrial fibrillation</li><li>chronic kidney disease</li><li>chronic obstructive pulmonary disorder</li><li>diabetes</li><li>family history of cardiovascular disease</li><li>hypertension treated</li><li>rheumatoid arthritis</li><li>smoker</li><li>systolic blood pressure</li></ul>
 </section>
+
+
+<section id="try-it">
+  <h2>Try the QRISK3-style instrument</h2>
+  <p>This reproduces, in-browser, the exact scoring function used as one of the six baselines
+  above — the same coefficients, the same fixed inputs, computed the same way as
+  <code>src/04_baselines.py</code>'s <code>qrisk3_style_score()</code>. It's the only one of
+  the six models that can run client-side: RSF, GBSA, DeepSurv, and DeepHit are fitted
+  Python/PyTorch models, not portable formulas.</p>
+  <div class="calc-card">
+    <div class="warn-box" role="note">
+      <svg class="warn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L22 20 H2 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><line x1="12" y1="9.5" x2="12" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1" fill="currentColor"/></svg>
+      <div>
+        <p class="warn-title">Not a clinical instrument — read before you try it</p>
+        <ul class="warn-list">
+          <li>This is a research demonstration on a 100% synthetic-data thesis project. Do not use it to make real medical decisions — speak to a clinician instead.</li>
+          <li>It shows only the QRISK3-style formula, one of the six models compared above — not the project's best-performing or final model.</li>
+          <li>QRISK3 is validated for ages 25–84 only. Outside that range the score extrapolates and can saturate at exactly 100 — a known, documented edge case, not a bug.</li>
+          <li>Cholesterol/HDL ratio is fixed at 3 and blood-pressure variability at 10 mmHg for every input, per the project's rebuild rules — the calculator does not ask for them.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="calc-grid">
+      <div class="calc-inputs">
+        <div class="field-group">
+          <span class="field-label">Sex</span>
+          <div class="seg-control" role="group" aria-label="Sex">
+            <button type="button" data-sex="male" aria-pressed="true">Male</button>
+            <button type="button" data-sex="female" aria-pressed="false">Female</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <span class="field-label">Measurements</span>
+          <div class="num-row">
+            <label class="num-field">Age <span class="unit">(years)</span>
+              <input type="number" id="in-age" min="18" max="100" value="55" inputmode="numeric">
+            </label>
+            <label class="num-field">BMI <span class="unit">(kg/m&sup2;)</span>
+              <input type="number" id="in-bmi" min="12" max="60" step="0.1" value="27" inputmode="decimal">
+            </label>
+            <label class="num-field">Systolic BP <span class="unit">(mmHg)</span>
+              <input type="number" id="in-sbp" min="70" max="240" value="130" inputmode="numeric">
+            </label>
+          </div>
+        </div>
+        <div class="field-group">
+          <span class="field-label">Conditions &amp; history</span>
+          <div class="chip-grid">
+            <button type="button" class="chip" data-field="smoker" aria-pressed="false">Smoker</button>
+            <button type="button" class="chip" data-field="diabetes" aria-pressed="false">Diabetes</button>
+            <button type="button" class="chip" data-field="atrial_fibrillation" aria-pressed="false">Atrial fibrillation</button>
+            <button type="button" class="chip" data-field="hypertension_treated" aria-pressed="false">Hypertension (treated)</button>
+            <button type="button" class="chip" data-field="chronic_kidney_disease" aria-pressed="false">Chronic kidney disease</button>
+            <button type="button" class="chip" data-field="rheumatoid_arthritis" aria-pressed="false">Rheumatoid arthritis</button>
+            <button type="button" class="chip" data-field="family_history_of_cardiovascular_disease" aria-pressed="false">Family history of CVD</button>
+          </div>
+        </div>
+      </div>
+      <div class="gauge-panel">
+        <svg class="gauge-svg" viewBox="0 0 240 150" aria-hidden="true">
+          <path id="track-low" class="gauge-track-low" fill="none" stroke-width="14" stroke-linecap="round"></path>
+          <path id="track-moderate" class="gauge-track-moderate" fill="none" stroke-width="14" stroke-linecap="round"></path>
+          <path id="track-high" class="gauge-track-high" fill="none" stroke-width="14" stroke-linecap="round"></path>
+          <line id="needle" class="gauge-needle" x1="120" y1="120" x2="120" y2="34" stroke-width="3" stroke-linecap="round"></line>
+          <circle class="gauge-hub" cx="120" cy="120" r="6"></circle>
+        </svg>
+        <div class="gauge-readout">
+          <span class="gauge-value" id="out-score">—</span>
+          <span class="gauge-sub">10-year risk</span>
+          <div><span class="risk-pill low" id="out-pill">—</span></div>
+        </div>
+        <p class="gauge-explainer">Updates instantly as you change anything on the left. Higher
+        age, higher blood pressure, and each added condition raise this number; removing them
+        brings it back down — nothing is added up or remembered between changes.</p>
+        <p class="gauge-caveat" id="out-caveat"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  "use strict";
+
+  var QRISK3_SURVIVOR_10Y = { female: 0.988876402378082, male: 0.977268040180206 };
+  var QRISK3_ISMOKE_LIGHT = { female: 0.13386833786546262, male: 0.19128222863388983 };
+  var FIXED_CHOLESTEROL_HDL_RATIO = 3.0;
+  var FIXED_SBP_SD = 10.0;
+
+  function qrisk3StyleScore(row, sexLabel) {
+    var ageScaled = row.age / 10.0;
+    var bmiScaled = row.body_mass_index / 10.0;
+    var sbp = row.systolic_blood_pressure;
+    var smokeLight = row.smoker ? 1 : 0;
+    var diabetesType2 = row.diabetes ? 1 : 0;
+    var a, survivor;
+
+    if (sexLabel === "female") {
+      var age1 = Math.pow(ageScaled, -2) - 0.053274843841791;
+      var age2 = ageScaled - 4.332503318786621;
+      var bmi1 = Math.pow(bmiScaled, -2) - 0.154946178197861;
+      var bmi2 = Math.pow(bmiScaled, -2) * Math.log(bmiScaled) - 0.144462317228317;
+      var rati = FIXED_CHOLESTEROL_HDL_RATIO - 3.476326465606690;
+      var sbpC = sbp - 123.130012512207030;
+      var sbps5 = FIXED_SBP_SD - 9.002537727355957;
+
+      a = QRISK3_ISMOKE_LIGHT.female * smokeLight;
+      a += age1 * -8.1388109247726188 + age2 * 0.79733376689699098;
+      a += bmi1 * 0.29236092275460052 + bmi2 * -4.1513300213837665;
+      a += rati * 0.15338035820802554 + sbpC * 0.013131488407103424;
+      a += sbps5 * 0.0078894541014586095;
+      a += (row.atrial_fibrillation ? 1 : 0) * 1.5923354969269663;
+      a += (row.rheumatoid_arthritis ? 1 : 0) * 0.21364803435181942;
+      a += (row.chronic_kidney_disease ? 1 : 0) * 0.65194569493845833;
+      a += (row.hypertension_treated ? 1 : 0) * 0.50931593683423004;
+      a += diabetesType2 * 1.0688773244615468;
+      a += (row.family_history_of_cardiovascular_disease ? 1 : 0) * 0.45445319020896213;
+      a += age1 * smokeLight * -4.7057161785851891;
+      a += age1 * (row.atrial_fibrillation ? 1 : 0) * 19.938034889546561;
+      a += age1 * (row.chronic_kidney_disease ? 1 : 0) * -3.5874047731694114;
+      a += age1 * (row.hypertension_treated ? 1 : 0) * 11.872809733921812;
+      a += age1 * diabetesType2 * 6.8652342000009599;
+      a += age1 * bmi1 * 23.802623412141742 + age1 * bmi2 * -71.184947692087007;
+      a += age1 * (row.family_history_of_cardiovascular_disease ? 1 : 0) * 0.99467807940435127;
+      a += age1 * sbpC * 0.034131842338615485;
+      a += age2 * smokeLight * -0.075589244643193026;
+      a += age2 * (row.atrial_fibrillation ? 1 : 0) * -0.076182651011162505;
+      a += age2 * (row.chronic_kidney_disease ? 1 : 0) * -0.22688873086442507;
+      a += age2 * (row.hypertension_treated ? 1 : 0) * 0.00096857823588174436;
+      a += age2 * diabetesType2 * -0.097112252590695489;
+      a += age2 * bmi1 * 0.52369958933664429 + age2 * bmi2 * 0.045744190122323759;
+      a += age2 * (row.family_history_of_cardiovascular_disease ? 1 : 0) * -0.076885051698423038;
+      a += age2 * sbpC * -0.0015082501423272358;
+      survivor = QRISK3_SURVIVOR_10Y.female;
+    } else {
+      var mage1 = Math.pow(ageScaled, -1) - 0.234766781330109;
+      var mage2 = Math.pow(ageScaled, 3) - 77.284080505371094;
+      var mbmi1 = Math.pow(bmiScaled, -2) - 0.149176135659218;
+      var mbmi2 = Math.pow(bmiScaled, -2) * Math.log(bmiScaled) - 0.141913309693336;
+      var mrati = FIXED_CHOLESTEROL_HDL_RATIO - 4.300998687744141;
+      var msbpC = sbp - 128.571578979492190;
+      var msbps5 = FIXED_SBP_SD - 8.756621360778809;
+
+      a = QRISK3_ISMOKE_LIGHT.male * smokeLight;
+      a += mage1 * -17.839781666005575 + mage2 * 0.0022964880605765492;
+      a += mbmi1 * 2.4562776660536358 + mbmi2 * -8.3011122314711354;
+      a += mrati * 0.17340196856327111 + msbpC * 0.012910126542553305;
+      a += msbps5 * 0.010251914291290456;
+      a += (row.atrial_fibrillation ? 1 : 0) * 0.88209236928054657;
+      a += (row.rheumatoid_arthritis ? 1 : 0) * 0.20970658013956567;
+      a += (row.chronic_kidney_disease ? 1 : 0) * 0.71853261288274384;
+      a += (row.hypertension_treated ? 1 : 0) * 0.51659871082695474;
+      a += diabetesType2 * 0.85942071430932221;
+      a += (row.family_history_of_cardiovascular_disease ? 1 : 0) * 0.54055469009390156;
+      a += mage1 * smokeLight * -0.21011133933516346;
+      a += mage1 * (row.atrial_fibrillation ? 1 : 0) * 3.4896675530623207;
+      a += mage1 * (row.chronic_kidney_disease ? 1 : 0) * -0.50656716327223694;
+      a += mage1 * (row.hypertension_treated ? 1 : 0) * 6.5114581098532671;
+      a += mage1 * diabetesType2 * 3.6461817406221311;
+      a += mage1 * mbmi1 * 31.004952956033886 + mage1 * mbmi2 * -111.29157184391643;
+      a += mage1 * (row.family_history_of_cardiovascular_disease ? 1 : 0) * 2.7808628508531887;
+      a += mage1 * msbpC * 0.018858524469865853;
+      a += mage2 * smokeLight * -0.00049854870275326121;
+      a += mage2 * (row.atrial_fibrillation ? 1 : 0) * -0.00034995608340636049;
+      a += mage2 * (row.chronic_kidney_disease ? 1 : 0) * -0.0018325930166498813;
+      a += mage2 * (row.hypertension_treated ? 1 : 0) * 0.00063838053104165013;
+      a += mage2 * diabetesType2 * -0.00024695695588868315;
+      a += mage2 * mbmi1 * 0.0050380102356322029 + mage2 * mbmi2 * -0.013074483002524319;
+      a += mage2 * (row.family_history_of_cardiovascular_disease ? 1 : 0) * -0.00024791809907396037;
+      a += mage2 * msbpC * -0.0000127187419158845700;
+      survivor = QRISK3_SURVIVOR_10Y.male;
+    }
+
+    return 100.0 * (1 - Math.pow(survivor, Math.exp(a)));
+  }
+
+  var CX = 120, CY = 120, R = 90, NEEDLE_LEN = 86;
+
+  function polarToCartesian(cx, cy, r, angleDeg) {
+    var rad = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+  function valueToAngle(v) { return -90 + (v / 100) * 180; }
+
+  function describeArc(cx, cy, r, startAngle, endAngle) {
+    var start = polarToCartesian(cx, cy, r, endAngle);
+    var end = polarToCartesian(cx, cy, r, startAngle);
+    var largeArc = (endAngle - startAngle) <= 180 ? "0" : "1";
+    return ["M", start.x, start.y, "A", r, r, 0, largeArc, 0, end.x, end.y].join(" ");
+  }
+
+  document.getElementById("track-low").setAttribute("d", describeArc(CX, CY, R, valueToAngle(0), valueToAngle(10)));
+  document.getElementById("track-moderate").setAttribute("d", describeArc(CX, CY, R, valueToAngle(10), valueToAngle(20)));
+  document.getElementById("track-high").setAttribute("d", describeArc(CX, CY, R, valueToAngle(20), valueToAngle(100)));
+
+  var needle = document.getElementById("needle");
+  needle.setAttribute("x1", CX);
+  needle.setAttribute("y1", CY);
+  var top = polarToCartesian(CX, CY, NEEDLE_LEN, 0);
+  needle.setAttribute("x2", top.x);
+  needle.setAttribute("y2", top.y);
+
+  var state = {
+    sex: "male",
+    age: 55,
+    body_mass_index: 27,
+    systolic_blood_pressure: 130,
+    smoker: false,
+    diabetes: false,
+    atrial_fibrillation: false,
+    hypertension_treated: false,
+    chronic_kidney_disease: false,
+    rheumatoid_arthritis: false,
+    family_history_of_cardiovascular_disease: false
+  };
+
+  function recompute() {
+    var score = qrisk3StyleScore(state, state.sex);
+    var clamped = Math.max(0, Math.min(100, score));
+    var angle = valueToAngle(clamped);
+    needle.style.transform = "rotate(" + angle + "deg)";
+
+    document.getElementById("out-score").textContent = score.toFixed(1) + "%";
+
+    var pill = document.getElementById("out-pill");
+    var band, label;
+    if (score < 10) { band = "low"; label = "Lower range"; }
+    else if (score < 20) { band = "moderate"; label = "Moderate range"; }
+    else { band = "high"; label = "Higher range"; }
+    pill.className = "risk-pill " + band;
+    pill.textContent = label;
+
+    var caveat = document.getElementById("out-caveat");
+    if (state.age < 25 || state.age > 84) {
+      caveat.textContent = "Age " + state.age + " is outside QRISK3's validated 25–84 range — the score is extrapolated.";
+      caveat.classList.add("is-warning");
+    } else if (score >= 99.95) {
+      caveat.textContent = "Score has saturated at the formula's ceiling — a documented edge-case behaviour at extreme inputs.";
+      caveat.classList.add("is-warning");
+    } else {
+      caveat.textContent = "Bands (low / moderate / high) are illustrative only, not a cited clinical guideline.";
+      caveat.classList.remove("is-warning");
+    }
+  }
+
+  document.querySelectorAll(".seg-control button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".seg-control button").forEach(function (b) { b.setAttribute("aria-pressed", "false"); });
+      btn.setAttribute("aria-pressed", "true");
+      state.sex = btn.getAttribute("data-sex");
+      recompute();
+    });
+  });
+
+  document.querySelectorAll(".chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var field = chip.getAttribute("data-field");
+      var next = chip.getAttribute("aria-pressed") !== "true";
+      chip.setAttribute("aria-pressed", String(next));
+      state[field] = next;
+      recompute();
+    });
+  });
+
+  function bindNumber(id, field, min, max) {
+    var el = document.getElementById(id);
+    el.addEventListener("input", function () {
+      var v = parseFloat(el.value);
+      if (isNaN(v)) return;
+      v = Math.max(min, Math.min(max, v));
+      state[field] = v;
+      recompute();
+    });
+  }
+  bindNumber("in-age", "age", 18, 100);
+  bindNumber("in-bmi", "body_mass_index", 12, 60);
+  bindNumber("in-sbp", "systolic_blood_pressure", 70, 240);
+
+  recompute();
+})();
+</script>
+
 
 <section id="figures">
   <h2>Descriptive survival, calibration, and explainability</h2>

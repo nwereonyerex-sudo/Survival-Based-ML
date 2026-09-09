@@ -22,6 +22,7 @@ questions, and anything unexpected encountered — plus the sanity check that cl
 9. [Stage 7 — Evaluation](#9-stage-7--evaluation-c-index-unos-c-integrated-brier-score-calibration)
 10. [Stage 8 — Explainability (SHAP, LIME, stability testing)](#10-stage-8--explainability-shap-lime-stability-testing)
 11. [Results dashboard (GitHub Pages)](#11-results-dashboard-github-pages)
+12. [Interactive QRISK3-style calculator (dashboard addition)](#12-interactive-qrisk3-style-calculator-dashboard-addition)
 
 ---
 
@@ -643,5 +644,65 @@ with no missing values.
 
 ---
 
-*End of journal. Stage 8 was the last modelling pipeline stage; the results dashboard (§11
-above) is built and pending the GitHub Pages toggle.*
+## 12. Interactive QRISK3-style calculator (dashboard addition)
+
+**Date:** 2026-09-09 · **Branch:** `session/2026-09-09-qrisk3-calculator-demo`
+
+**What was built:** an in-browser, client-side QRISK3-style risk calculator added to
+`src/09_build_dashboard.py`'s generated `docs/index.html` (a new "Try the QRISK3-style
+instrument" section between "Selected predictors" and the figures), plus a separately
+published, more heavily restyled Claude Artifact ("Pulse Bench") carrying the same
+calculator for demo/presentation use. Neither is a new pipeline stage — both are additions
+to the existing Stage 9 dashboard, in the same spirit as §15.5's original "beyond the §11
+8-stage layout" note.
+
+The calculator is a hand-ported JavaScript translation of `qrisk3_style_score()` from
+`src/04_baselines.py` (§7's QRISK3-2017 rebuild) — same coefficients, same fixed
+cholesterol/HDL ratio (3) and SBP SD (10), computed identically, so it reproduces exactly
+one of the six baselines live as the visitor changes age, BMI, systolic BP, sex, and the
+seven binary risk factors. It is deliberately limited to this one model: RSF, GBSA,
+DeepSurv, and DeepHit are fitted Python/PyTorch models with no client-side equivalent, so
+the calculator cannot and does not represent the project's better-performing models — the
+UI says this explicitly rather than leaving a false impression of coverage.
+
+**Validation (§10.4 test/sanity check):** before writing any JS, generated 4 reference
+outputs directly from the real `qrisk3_style_score()` (both sexes, a low-risk and a
+high-risk profile) via a throwaway Python script. Ported the function to JS and checked it
+against those 4 references in Node — matched to 6 decimal places. After transcribing the
+same JS into `09_build_dashboard.py`'s Python string template, re-extracted the generated
+`<script>` block from the actual `docs/index.html` output and re-ran the same 4 cases in
+Node again — still matched to 6 decimal places, catching any transcription slip before
+shipping (there wasn't one, but this step is what would have caught it).
+
+**Deviation from spec / process note:** the first edit pass on this branch was made before
+cutting the session branch, in violation of §15.2 ("before writing code in a session, cut a
+new branch from main"). Caught and corrected mid-session — `git checkout -b` was run after
+the fact, which is safe only because nothing had been committed yet; the working-tree
+changes moved onto the new branch cleanly. No repeat of this going forward: branch first.
+
+**Open item — no live browser QA this session:** the Chrome extension used for in-browser
+verification would not connect (`tabs_context_mcp` returned "Browser extension is not
+connected" on two separate attempts), so unlike §11's dashboard build, this addition was
+not click-tested end-to-end in an actual browser — no confirmation, by direct observation,
+that the gauge needle, risk pill, and warning callout render and update correctly on
+screen. Verification instead relied on (a) the numeric validation above, (b) structural
+checks on the generated HTML (balanced `<script>`/`<style>` tags, no leftover template
+placeholders, single occurrence of each new element id/class), and (c) the same calculator
+code running interactively in the separately-published Claude Artifact, which the user can
+already exercise directly. Recommend an actual click-through in a browser before treating
+the GitHub Pages version as fully confirmed, if that matters for submission — this is
+flagged rather than silently assumed fine (§0.7).
+
+**Design note:** kept the existing dashboard's palette/typography (cream page, SaaS-blue
+accent, system-sans) rather than adopting the Artifact's separate teal/Archivo/Plex
+redesign, per explicit user instruction — the two surfaces are intentionally visually
+distinct (one is the versioned GitHub Pages site, the other a private demo copy) even
+though the calculator logic is identical in both.
+
+**Not yet done:** pushing this branch / merging to `main` — held pending explicit user
+sign-off per §15.1 and §15.3's merge gate, requested but not yet given as of this entry.
+
+---
+
+*End of journal. Stage 8 was the last modelling pipeline stage; the results dashboard (§11)
+is live, and §12 above adds an interactive calculator to it, pending merge.*
