@@ -1,23 +1,24 @@
 """Stage 2 — preprocessing: imputation, encoding, sex-specific 70/15/15 split.
 
-Follows CLAUDE.md §4 (imputation), §0.4 (sex-stratified pipelines — applied here to
-imputation, not just modelling), and §6 (train/validation/test split). Missingness and split
-design are grounded in Burns, Richardson and Driessens (2024) and Liu et al. (2026).
+Imputation (median/flag for MCAR, COPD-stratified median for MAR), sex-stratified pipelines
+(applied here to imputation, not just modelling), and the train/validation/test split.
+Missingness and split design are grounded in Burns, Richardson and Driessens (2024) and Liu
+et al. (2026).
 
 Two decisions here are explicit deviations from a literal reading of the spec, made with the
-user's sign-off on 2026-08-20 (recorded in journal/agent_journal.md, per CLAUDE.md §14):
+user's sign-off on 2026-08-20 (recorded in journal/agent_journal.md):
 
 1. `smoker` and `family_history_of_cardiovascular_disease` are left completely untouched.
-   §4 asks for an "unknown" category for these two flipped binary variables, but Stage 1
-   confirmed the 1->0 flip (p=0.30) leaves no missing-value marker at all in the released
+   The spec asks for an "unknown" category for these two flipped binary variables, but Stage
+   1 confirmed the 1->0 flip (p=0.30) leaves no missing-value marker at all in the released
    CSV — every value is already a plain 0/1 with no way to tell a corrupted 0 from a true
    one. There is nothing to impute or flag. Both columns are documented as carrying known
    non-differential measurement error at p=0.30, not treated as missing data.
 2. Imputation is computed and applied on the whole per-sex cohort *before* the 70/15/15
-   split (matching §11's literal script description), not from the training fold only. This
-   is a minor, acknowledged information leak from validation/test into the imputed median —
-   negligible for a low-capacity statistic like a median, but flagged here since §5/§6 are
-   strict about zero leakage elsewhere in the pipeline.
+   split, not from the training fold only. This is a minor, acknowledged information leak
+   from validation/test into the imputed median — negligible for a low-capacity statistic
+   like a median, but flagged here since the split design is strict about zero leakage
+   elsewhere in the pipeline.
 """
 
 import sys
@@ -44,25 +45,25 @@ EVENT_COL = "heart_attack_or_stroke_occurred"
 
 
 def load_and_verify(path: Path) -> pd.DataFrame:
-    """Same §3 schema check as Stage 1 — kept self-contained here so each stage script can be
-    run independently (§2: one script per pipeline stage)."""
+    """Same schema check as Stage 1 — kept self-contained here so each stage script can be
+    run independently (one script per pipeline stage)."""
     df = pd.read_csv(path)
     errors = []
     if df.shape[0] != EXPECTED_ROW_COUNT:
         errors.append(f"row count = {df.shape[0]}, expected {EXPECTED_ROW_COUNT}")
     if list(df.columns) != EXPECTED_COLUMNS:
-        errors.append(f"column names/order do not match §3: got {list(df.columns)}")
+        errors.append(f"column names/order do not match the expected schema: got {list(df.columns)}")
     if errors:
         raise ValueError(
-            "Dataset does not match CLAUDE.md §3 schema — stopping rather than proceeding:\n"
+            "Dataset does not match the expected schema — stopping rather than proceeding:\n"
             + "\n".join(f"  - {e}" for e in errors)
         )
     return df
 
 
 def impute_sex_cohort(cohort: pd.DataFrame, sex_label: str) -> pd.DataFrame:
-    """Impute one sex cohort's missing values per §4, using statistics from that cohort only
-    (§0.4's two-fully-independent-pipelines principle applied to preprocessing)."""
+    """Impute one sex cohort's missing values using statistics from that cohort only (the
+    two-fully-independent-pipelines principle applied to preprocessing)."""
     cohort = cohort.copy()
 
     for col in ["body_mass_index", "systolic_blood_pressure"]:
@@ -72,7 +73,7 @@ def impute_sex_cohort(cohort: pd.DataFrame, sex_label: str) -> pd.DataFrame:
         print(f"  [{sex_label}] {col}: filled {n_missing} missing with median = {median:.2f}")
 
     # MAR: FEV1 imputed conditionally within COPD strata, never with a single unconditional
-    # median (CLAUDE.md §4).
+    # median.
     for copd_status in [0, 1]:
         mask = cohort["chronic_obstructive_pulmonary_disorder"] == copd_status
         median = cohort.loc[mask, "forced_expiratory_volume_1"].median()
@@ -95,21 +96,21 @@ def impute_sex_cohort(cohort: pd.DataFrame, sex_label: str) -> pd.DataFrame:
 
 
 def encoding_note(df: pd.DataFrame) -> None:
-    """§11 lists 'encoding' as part of this stage. Documented explicitly rather than silently
+    """Encoding is listed as part of this stage. Documented explicitly rather than silently
     skipped: no categorical encoding is required. All 14 predictors besides `gender` are
     already numeric (int/0-1 binary). `gender` itself is used only to split into the two
-    sex-specific cohorts (§0.4) — it is never a covariate in either pipeline, so it is not
-    encoded as a feature."""
+    sex-specific cohorts — it is never a covariate in either pipeline, so it is not encoded
+    as a feature."""
     non_numeric = [c for c in df.columns if c not in ("patient_id", "gender")
                    and df[c].dtype == object]
     assert not non_numeric, f"unexpected non-numeric predictor columns: {non_numeric}"
     print("  All predictors besides `gender` are already numeric — no encoding required.")
-    print("  `gender` is used only to split cohorts, never as a covariate (§0.4).")
+    print("  `gender` is used only to split cohorts, never as a covariate.")
 
 
 def sex_stratified_split(cohort: pd.DataFrame, sex_label: str):
-    """§6: 70/15/15 split, stratified on the event indicator, random_state=42, independent
-    per sex cohort."""
+    """70/15/15 split, stratified on the event indicator, random_state=42, independent per
+    sex cohort."""
     train, temp = train_test_split(
         cohort, test_size=0.30, stratify=cohort[EVENT_COL], random_state=RANDOM_STATE
     )
@@ -129,9 +130,9 @@ def sex_stratified_split(cohort: pd.DataFrame, sex_label: str):
 
 
 def run_sanity_checks(cohort: pd.DataFrame, train, val, test, sex_label: str) -> None:
-    """§10.4 test/sanity check: split sizes reconstruct the cohort exactly, no patient
-    appears in more than one partition, and event rate is preserved within a small tolerance
-    (stratified split, so should be very close)."""
+    """Sanity check: split sizes reconstruct the cohort exactly, no patient appears in more
+    than one partition, and event rate is preserved within a small tolerance (stratified
+    split, so should be very close)."""
     assert len(train) + len(val) + len(test) == len(cohort), (
         f"[{sex_label}] split sizes don't sum to cohort size"
     )
@@ -159,11 +160,11 @@ def main() -> None:
     except ValueError as e:
         print(f"[STOP] {e}", file=sys.stderr)
         sys.exit(1)
-    print(f"[OK] Loaded {df.shape[0]:,} rows, schema matches §3.")
+    print(f"[OK] Loaded {df.shape[0]:,} rows, schema verified.")
 
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("\n--- Encoding (§11) ---")
+    print("\n--- Encoding ---")
     encoding_note(df)
 
     for sex_code, sex_label in [("M", "male"), ("F", "female")]:

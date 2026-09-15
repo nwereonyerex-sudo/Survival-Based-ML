@@ -1,13 +1,13 @@
-"""Stage 4 — baselines (CLAUDE.md §7): Kaplan-Meier (descriptive), CoxPH, and the simplified
-QRISK3-style score rebuild. Per sex. Fits/builds the baseline models and persists per-patient
-risk predictions to `results/tables/` for Stage 5/§11 (07_evaluation.py) to score uniformly
-alongside RSF/GBSA/DeepSurv/DeepHit — C-index, Uno's C, Brier score, calibration, and
-bootstrap 95% CIs (§8, §12) are computed there, not here, so every model is scored the same
-way. KM curves are saved to `results/figures/`.
+"""Stage 4 — baselines: Kaplan-Meier (descriptive), CoxPH, and the simplified QRISK3-style
+score rebuild. Per sex. Fits/builds the baseline models and persists per-patient risk
+predictions to `results/tables/` for 07_evaluation.py to score uniformly alongside
+RSF/GBSA/DeepSurv/DeepHit — C-index, Uno's C, Brier score, calibration, and bootstrap 95%
+CIs are computed there, not here, so every model is scored the same way. KM curves are saved
+to `results/figures/`.
 
-**QRISK3 coefficient provenance — flagged to and resolved with the user on 2026-08-20 (§14):**
-CLAUDE.md §7 asks for "the exact simplified variant Burns, Richardson and Driessens (2024)
-used to simulate the outcome." Their paper (checked directly, plus the Zenodo deposit — no
+**QRISK3 coefficient provenance — flagged to and resolved with the user on 2026-08-20:** the
+spec asks for "the exact simplified variant Burns, Richardson and Driessens (2024) used to
+simulate the outcome." Their paper (checked directly, plus the Zenodo deposit — no
 supplementary code or coefficients exist anywhere) only describes their approach
 qualitatively; the actual per-predictor coefficients they used are not published and are
 unrecoverable. Per the user's instruction, this rebuild instead uses the real, original
@@ -15,13 +15,13 @@ QRISK3-2017 coefficients (Hippisley-Cox, Coupland and Brindle, 2017), sourced fr
 Ltd.'s own reference implementation (released under LGPL specifically "to enable others to
 implement the algorithm faithfully," https://qrisk.org, mirrored at
 https://github.com/sisuhealthgroup/qrisk3/blob/master/src/lib/original/qrisk3.c) and
-restricted to this dataset's available predictors per §7's rules. This Python port was
-validated against ClinRisk's own published test cases (age x sex x cholesterol/HDL grid,
-white ethnicity, no comorbidities) before being restricted — all 8 cases matched to within
-0.05 percentage points. Corroborating evidence this is a reasonable proxy for what Burns et
-al. actually did: their paper's stated 10-year baseline survival values (0.977 male / 0.989
-female) match the real QRISK3 baseline survivor constants (0.977268... / 0.988876...) to 3
-decimal places — they evidently anchored their simulation on the same baseline hazard.
+restricted to this dataset's available predictors. This Python port was validated against
+ClinRisk's own published test cases (age x sex x cholesterol/HDL grid, white ethnicity, no
+comorbidities) before being restricted — all 8 cases matched to within 0.05 percentage
+points. Corroborating evidence this is a reasonable proxy for what Burns et al. actually
+did: their paper's stated 10-year baseline survival values (0.977 male / 0.989 female) match
+the real QRISK3 baseline survivor constants (0.977268... / 0.988876...) to 3 decimal places
+— they evidently anchored their simulation on the same baseline hazard.
 """
 
 import math
@@ -52,18 +52,19 @@ HORIZON_YEARS = 10.0
 EVAL_TIME_GRID = list(range(1, 11))
 
 
-# --- QRISK3-style score (§7) --------------------------------------------------------------
+# --- QRISK3-style score -----------------------------------------------------------------
 # Coefficients are the real QRISK3-2017 values (Hippisley-Cox, Coupland and Brindle, 2017),
 # restricted to this dataset's predictors. Ethnicity and Townsend deprivation terms (absent
-# from this dataset, §7) are omitted entirely, not defaulted to a "neutral" value, since a
+# from this dataset) are omitted entirely, not defaulted to a "neutral" value, since a
 # defaulted raw value would still contribute a non-zero centred term. rati (cholesterol/HDL)
-# and sbps5 (SBP SD) are retained but fixed at 3 and 10 respectively, per §7.
+# and sbps5 (SBP SD) are retained but fixed at 3 and 10 respectively, per this project's
+# simplified rebuild rules.
 QRISK3_SURVIVOR_10Y = {"female": 0.988876402378082, "male": 0.977268040180206}
 QRISK3_ISMOKE_LIGHT = {"female": 0.13386833786546262, "male": 0.19128222863388983}
 FIXED_CHOLESTEROL_HDL_RATIO = 3.0
 FIXED_SBP_SD = 10.0
 
-# Known, accepted behaviour (user sign-off 2026-08-20, §0.7 — not silently smoothed over):
+# Known, accepted behaviour (user sign-off 2026-08-20 — not silently smoothed over):
 # QRISK3 is only officially validated for ages 25-84. 11.1% of this dataset (11,110 patients)
 # is under 25, and the fractional-polynomial age/BMI terms below are not calibrated for that
 # range. For the rare combination of very young age with the dataset's implausible synthetic
@@ -79,8 +80,8 @@ def qrisk3_style_score(row: pd.Series, sex_label: str) -> float:
     age_scaled = row["age"] / 10.0
     bmi_scaled = row["body_mass_index"] / 10.0
     sbp = row["systolic_blood_pressure"]
-    smoke_light = 1 if row["smoker"] == 1 else 0  # §7: smoker ≈ light-smoker status
-    diabetes_type2 = 1 if row["diabetes"] == 1 else 0  # §7: diabetes ≈ type 2
+    smoke_light = 1 if row["smoker"] == 1 else 0  # smoker treated as light-smoker status
+    diabetes_type2 = 1 if row["diabetes"] == 1 else 0  # diabetes treated as type 2
 
     if sex_label == "female":
         age_1, age_2 = age_scaled ** -2, age_scaled
@@ -181,7 +182,7 @@ def load_selected_features(sex_label: str) -> list:
     return sorted(summary.loc[summary["final_selected_feature_set"], "predictor"].tolist())
 
 
-# --- Kaplan-Meier (descriptive only, §7) ------------------------------------------------------
+# --- Kaplan-Meier (descriptive only) ------------------------------------------------------
 
 def plot_kaplan_meier(sex_label: str, full_cohort: pd.DataFrame) -> None:
     time, survival_prob, conf_int = kaplan_meier_estimator(
@@ -203,7 +204,7 @@ def plot_kaplan_meier(sex_label: str, full_cohort: pd.DataFrame) -> None:
           f"(survival at 10y = {survival_prob[time <= 10][-1]:.4f})")
 
 
-# --- CoxPH (§7) --------------------------------------------------------------------------------
+# --- CoxPH ---------------------------------------------------------------------------------
 
 def fit_coxph(train_df: pd.DataFrame, features: list, sex_label: str):
     X_train = train_df[features].astype(float)
@@ -216,7 +217,7 @@ def fit_coxph(train_df: pd.DataFrame, features: list, sex_label: str):
 
 
 def survival_at_horizon(model, X: pd.DataFrame, horizon: float = HORIZON_YEARS) -> np.ndarray:
-    """§8: Brier score and calibration need a predicted P(event by horizon) = 1 - S(horizon|X)
+    """Brier score and calibration need a predicted P(event by horizon) = 1 - S(horizon|X)
     per patient, not just a relative risk score — the risk score alone is only sufficient for
     the C-index. Evaluates each patient's individual survival step function at the horizon."""
     step_functions = model.predict_survival_function(X)
@@ -224,10 +225,10 @@ def survival_at_horizon(model, X: pd.DataFrame, horizon: float = HORIZON_YEARS) 
 
 
 def survival_curve_at_grid(model, X: pd.DataFrame, times=EVAL_TIME_GRID) -> dict:
-    """Stage 7's integrated Brier score (§8) needs each patient's survival probability at
-    multiple time points, not just the 10-year horizon — evaluates the same per-patient step
-    function at every year 1-10 (added when building Stage 7, patching this already-merged
-    stage rather than having Stage 7 re-fit the model; see journal 2026-08-20)."""
+    """Stage 7's integrated Brier score needs each patient's survival probability at multiple
+    time points, not just the 10-year horizon — evaluates the same per-patient step function
+    at every year 1-10 (added when building Stage 7, patching this already-merged stage
+    rather than having Stage 7 re-fit the model; see journal 2026-08-20)."""
     step_functions = model.predict_survival_function(X)
     return {t: np.array([fn(t) for fn in step_functions]) for t in times}
 

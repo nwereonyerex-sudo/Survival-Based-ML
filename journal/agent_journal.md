@@ -24,6 +24,7 @@ questions, and anything unexpected encountered — plus the sanity check that cl
 11. [Results dashboard (GitHub Pages)](#11-results-dashboard-github-pages)
 12. [Interactive QRISK3-style calculator (dashboard addition)](#12-interactive-qrisk3-style-calculator-dashboard-addition)
 13. [Full pipeline reference notebook](#13-full-pipeline-reference-notebook)
+14. [Trim spec section-pointers from code comments](#14-trim-spec-section-pointers-from-code-comments)
 
 ---
 
@@ -712,7 +713,8 @@ sign-off per §15.1 and §15.3's merge gate, requested but not yet given as of t
 **What was built:** the user asked where to get "all the coding joined together and the
 images also shown" for the whole process — a single place to review every stage's code next
 to what it produced, rather than switching between nine separate `.py` files and the
-`results/` directory. Added `src/10_full_pipeline_reference.ipynb`: one notebook, sections
+`results/` directory. Added `src/10_full_pipeline.ipynb` (renamed from
+`10_full_pipeline_reference.ipynb` in the next session, §14): one notebook, sections
 for Stages 1–9 in order, each with a short blurb (drawn from that stage's own docstring, so
 no new citations were introduced), the stage's full script pasted verbatim as a code cell,
 and — for the stages that actually produce one — the figures/tables that stage wrote to
@@ -764,6 +766,55 @@ sign-off per §15.1 and §15.3's merge gate.
 
 ---
 
+## 14. Trim spec section-pointers from code comments
+
+**Date:** 2026-09-15 · **Branch:** `session/2026-09-15-trim-spec-comments`
+
+**What was built:** the user asked to reduce comments about CLAUDE.md that weren't
+necessary, keeping only what actually explains the methodology. Clarified scope with the
+user first: strip only the bare `CLAUDE.md §X` / `(§X)` section-pointer style references —
+e.g. "verifies it matches the schema fixed in CLAUDE.md §3" became "verifies it matches the
+expected schema" — while keeping every Harvard citation (Author, Year) untouched and keeping
+the full multi-paragraph deviation/decision notes (QRISK3 coefficient provenance, FEV1/COPD
+tie-break, predictor-count wording slip, out-of-range QRISK3 behaviour) completely intact,
+since those are genuine thesis-relevant methodology, not spec bookkeeping. Applied to all of
+`src/01_data_ingestion.py` through `src/09_build_dashboard.py` (~51 occurrences across the
+nine files), then regenerated `src/10_full_pipeline.ipynb` from the cleaned files so the
+notebook stays a verbatim copy rather than going stale.
+
+**Also renamed per the user's explicit instruction:** `src/10_full_pipeline_reference.ipynb`
+→ `src/10_full_pipeline.ipynb` (dropped "reference" from both the filename and the
+notebook's own title cell). The `01_data_ingestion.py` … `09_build_dashboard.py` names were
+left untouched, as instructed.
+
+**One incidental accuracy fix made while already rewriting the touched sentence:**
+`01_data_ingestion.py`'s `profile_noise_note()` docstring/print said feature selection is
+"Stage 2" — it's actually Stage 3 (`03_feature_selection.py`; Stage 2 is preprocessing).
+Corrected in passing since the sentence was already being rewritten to drop its `(§5)`
+pointer; not requested by the user, but flagged here rather than silently folded in, per the
+"report anomalies honestly" standard applied to the project's own code, not just its data.
+
+**Not touched, deliberately:** `journal/agent_journal.md` itself (this file) still uses
+`§X` section references throughout, including in this entry. The user's request was scoped
+to code comments/docstrings; this journal is the project's own internal audit trail, and
+CLAUDE.md's traceability requirements apply to it directly — trimming spec references here
+would work against its purpose. The two `CLAUDE.md` mentions left in
+`09_build_dashboard.py` (a docstring pointer to CLAUDE.md/the journal, and the actual
+dashboard footer link a site visitor sees) were also left alone — real references to the
+document itself, not bare section numbers.
+
+**Test/sanity check:** `python -m py_compile` on all nine `src/*.py` files after editing —
+all pass. `grep -rn "§\|CLAUDE\.md" src/*.py` afterward confirms zero bare `§` pointers
+remain anywhere in `src/`, and the two remaining `CLAUDE.md` mentions are the legitimate
+ones described above. Loaded the regenerated notebook back with `json.load` and grepped its
+serialised JSON for `§` (zero occurrences) as the same check applied to the notebook copy.
+
+**Open item:** pushing this branch / merging to `main` — held pending explicit user
+sign-off per §15.1 and §15.3's merge gate.
+
+---
+
 *End of journal. Stage 8 was the last modelling pipeline stage; the results dashboard (§11)
-is live with an interactive calculator (§12), and §13 above adds a joined-together
-code+figures reference notebook, pending merge.*
+is live with an interactive calculator (§12); §13 added a joined-together code+figures
+notebook; §14 trimmed spec section-pointers from the `src/` comments and renamed that
+notebook to `src/10_full_pipeline.ipynb` — pending merge.*

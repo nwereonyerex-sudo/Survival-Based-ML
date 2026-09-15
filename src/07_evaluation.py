@@ -1,10 +1,10 @@
-"""Stage 7 — evaluation (CLAUDE.md §8/§12): C-index (Harrell et al., 1982), Uno's IPCW
-C-statistic (Uno et al., 2011), integrated Brier score (Graf et al., 1999) with calibration
-plots, all with bootstrap 95% CIs — applied uniformly to all six models, per sex, on the test
-set only (§6: held out exclusively for final evaluation).
+"""Stage 7 — evaluation: C-index (Harrell et al., 1982), Uno's IPCW C-statistic (Uno et al.,
+2011), integrated Brier score (Graf et al., 1999) with calibration plots, all with bootstrap
+95% CIs — applied uniformly to all six models, per sex, on the test set only (held out
+exclusively for final evaluation).
 
 Every reported number is compared against the sex-specific CoxPH *and* QRISK3-style baselines
-with an effect size (paired bootstrap difference) and CI, per §8's last bullet.
+with an effect size (paired bootstrap difference) and CI.
 
 **IPCW time-grid technical constraint, discovered while building this stage:**
 `sksurv`'s IPCW-weighted estimators (Uno's C, Brier score) require evaluation times strictly
@@ -16,7 +16,7 @@ reduction: every model is still assessed at essentially the 10-year horizon the 
 for.
 
 **QRISK3-style score gets a single-timepoint Brier score, not the integrated version** — it
-has no multi-year curve (§7: fixed clinical formula, not a fitted survival model; see the
+has no multi-year curve (fixed clinical formula, not a fitted survival model; see the
 Stages 4-6 patch note in the journal, 2026-08-20). Labelled explicitly as such in the output
 table, not silently presented as equivalent to the other five models' integrated score.
 """
@@ -92,8 +92,8 @@ def qrisk3_survival_10y(df: pd.DataFrame) -> np.ndarray:
 
 
 def compute_metrics(model_name: str, df: pd.DataFrame, y_train, idx: np.ndarray) -> dict:
-    """§8: C-index, Uno's C, and Brier score (integrated for curve models, single-timepoint
-    at TAU for QRISK3-style) for one bootstrap resample (or the full set if idx covers it)."""
+    """C-index, Uno's C, and Brier score (integrated for curve models, single-timepoint at
+    TAU for QRISK3-style) for one bootstrap resample (or the full set if idx covers it)."""
     spec = MODELS[model_name]
     sub = df.iloc[idx]
     y_sub = Surv.from_dataframe(EVENT_COL, TIME_COL, sub)
@@ -156,9 +156,9 @@ def bootstrap_all_models(df: pd.DataFrame, y_train, sex_label: str) -> pd.DataFr
 
 
 def decile_calibration(df: pd.DataFrame, model_name: str):
-    """§8: observed vs predicted 10-year event probability, decile-grouped. Observed
-    probability uses a KM estimate within each decile (accounts for censoring properly),
-    not a naive raw event proportion."""
+    """Observed vs predicted 10-year event probability, decile-grouped. Observed probability
+    uses a KM estimate within each decile (accounts for censoring properly), not a naive raw
+    event proportion."""
     spec = MODELS[model_name]
     predicted_risk = (1.0 - qrisk3_survival_10y(df)) if not spec["has_curve"] \
         else (1.0 - df[f"{model_name}_survival_at_10y"].values)

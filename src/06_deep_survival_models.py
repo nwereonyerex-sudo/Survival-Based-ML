@@ -1,11 +1,11 @@
-"""Stage 6 — deep survival models (CLAUDE.md §7): DeepSurv (Katzman et al., 2018) and
-DeepHit, single-risk formulation (Lee et al., 2018), per sex, on Stage 3's selected feature
-set (§5.4), via `pycox`/`torch`. `random_state=42` applied to both torch and numpy (§0.3).
+"""Stage 6 — deep survival models: DeepSurv (Katzman et al., 2018) and DeepHit, single-risk
+formulation (Lee et al., 2018), per sex, on Stage 3's selected feature set, via
+`pycox`/`torch`. `random_state=42` applied to both torch and numpy.
 
 pycox implements DeepSurv as `pycox.models.CoxPH` — a neural net replacing the linear
 predictor in a Cox partial-likelihood model, which is exactly Katzman et al.'s architecture
-(a PH-assumption-retaining model, per §7). DeepHit is `pycox.models.DeepHitSingle` — the
-single-risk variant is used because this dataset has one composite outcome (§7).
+(a PH-assumption-retaining model). DeepHit is `pycox.models.DeepHitSingle` — the single-risk
+variant is used because this dataset has one composite outcome.
 
 Neural nets need standardised input features (fit on the training fold only, applied to
 val/test — no leakage) — `StandardScaler`, used only here since it's a DL-specific
@@ -19,7 +19,7 @@ validation-set-decides principle as every other stage, deliberately not exhausti
 DeepHit's discrete time grid uses `num_durations=10` (one bin per observed year) — a natural,
 non-arbitrary choice since `time_to_event_or_censoring` is already integer-valued years 1-10.
 
-Formal scoring (§8) is deferred to Stage 7, same architecture as Stages 4-5. Predictions
+Formal scoring is deferred to Stage 7, same architecture as Stages 4-5. Predictions
 written to `results/tables/stage6_deep_survival_predictions_{sex}.csv` with both a risk score
 and predicted survival probability at the 10-year horizon per model.
 """
@@ -227,8 +227,8 @@ def run_sex_pipeline(sex_label: str) -> None:
         predictions.loc[test_mask, TIME_COL],
         predictions.loc[test_mask, "deephit_risk_score"],
     )[0]
-    print(f"  [{sex_label}] test-set C-index (informal check, not the formal §8 evaluation): "
-          f"DeepSurv = {test_deepsurv_cindex:.4f}, DeepHit = {test_deephit_cindex:.4f}")
+    print(f"  [{sex_label}] test-set C-index (informal check, not the formal Stage 7 "
+          f"evaluation): DeepSurv = {test_deepsurv_cindex:.4f}, DeepHit = {test_deephit_cindex:.4f}")
 
     out_path = RESULTS_TABLES / f"stage6_deep_survival_predictions_{sex_label}.csv"
     predictions.to_csv(out_path, index=False)
