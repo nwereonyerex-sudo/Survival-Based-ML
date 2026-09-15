@@ -1,5 +1,6 @@
-"""Stage 9 (added beyond the original §11 8-stage layout, per the user's deployment request —
-see CLAUDE.md §15.5/§17) — builds the static results dashboard for GitHub Pages.
+"""Stage 9 (added beyond the original 8-stage layout, per the user's deployment request —
+see CLAUDE.md and the journal for the full account) — builds the static results dashboard
+for GitHub Pages.
 
 Reads the actual Stage 3/7/8 output tables (never hand-transcribed) and renders a single
 static HTML page to `docs/index.html`, with the Stage 4/7/8 figures copied to `docs/figures/`.
@@ -370,7 +371,7 @@ code {{ font-size: 0.85em; background: var(--surface); padding: 0.1em 0.35em; bo
 </html>
 """
 
-# --- QRISK3-style calculator (client-side demo of §7's rebuild) --------------------------
+# --- QRISK3-style calculator (client-side demo of the Stage 4 rebuild) -------------------
 # The in-browser port must match src/04_baselines.py's qrisk3_style_score() exactly — validated
 # against it on 4 hand-picked cases (both sexes, low/high risk) via Node, matching to 6 decimal
 # places before this was written into the page.

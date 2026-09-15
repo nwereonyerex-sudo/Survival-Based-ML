@@ -1,21 +1,20 @@
-"""Stage 5 — survival ML models (CLAUDE.md §7): Random Survival Forest (RSF, Ishwaran et al.,
-2008) and Gradient-Boosting Survival Analysis (GBSA, Friedman, 2001), per sex, on Stage 3's
-selected feature set (§5.4 — same predictor set as CoxPH, so differences are attributable to
-the model, not the inputs). `random_state=42` everywhere a seed is settable (§0.3).
+"""Stage 5 — survival ML models: Random Survival Forest (RSF, Ishwaran et al., 2008) and
+Gradient-Boosting Survival Analysis (GBSA, Friedman, 2001), per sex, on Stage 3's selected
+feature set (same predictor set as CoxPH, so differences are attributable to the model, not
+the inputs). `random_state=42` everywhere a seed is settable.
 
-Neither model has an explicitly specified tuning procedure in CLAUDE.md (unlike LASSO's §5.2,
-which is explicit about validation-set tuning). Extending that same principle here: a small
-grid is fit on the training fold and scored by Harrell's C-index on the validation fold — the
-same validation-not-training, validation-not-test discipline used throughout §5/§6 — never an
-exhaustive search, to keep runtime reasonable on a single machine; the exact grids are logged
-in journal/agent_journal.md.
+Neither model has an explicitly specified tuning procedure in the spec (unlike LASSO, which
+is explicit about validation-set tuning). Extending that same principle here: a small grid
+is fit on the training fold and scored by Harrell's C-index on the validation fold — the
+same validation-not-training, validation-not-test discipline used throughout the pipeline —
+never an exhaustive search, to keep runtime reasonable on a single machine; the exact grids
+are logged in journal/agent_journal.md.
 
-Formal scoring (C-index, Uno's C, Brier score, calibration, bootstrap 95% CIs — §8/§12) is
-deferred to Stage 7 (07_evaluation.py), applied uniformly across all six models, per §11's
-architecture (see Stage 4's docstring). Predictions written to
-`results/tables/stage5_ml_model_predictions_{sex}.csv`, with both a risk score (C-index) and
-a predicted survival probability at the 10-year horizon (Brier score/calibration) per model —
-matching the format Stage 4's patch established.
+Formal scoring (C-index, Uno's C, Brier score, calibration, bootstrap 95% CIs) is deferred
+to Stage 7 (07_evaluation.py), applied uniformly across all six models (see Stage 4's
+docstring). Predictions written to `results/tables/stage5_ml_model_predictions_{sex}.csv`,
+with both a risk score (C-index) and a predicted survival probability at the 10-year horizon
+(Brier score/calibration) per model — matching the format Stage 4's patch established.
 """
 
 import sys
@@ -50,8 +49,8 @@ RSF_GRID = [
 # scikit-survival's Cox partial-likelihood loss evaluates the full risk set at every boosting
 # stage — cost scales with n_estimators, not meaningfully with max_depth. Capped at
 # n_estimators=100 and reduced to 3 combos; subsample=0.5 (stochastic gradient boosting,
-# legitimately part of Friedman 2001 — the same paper GBSA is cited to, §7) both speeds up
-# each fit and is a real regularisation technique, not just a speed hack.
+# legitimately part of Friedman 2001 — the same paper GBSA is cited to) both speeds up each
+# fit and is a real regularisation technique, not just a speed hack.
 GBSA_GRID = [
     {"n_estimators": 100, "learning_rate": 0.05, "max_depth": 2},
     {"n_estimators": 100, "learning_rate": 0.1, "max_depth": 2},
@@ -158,8 +157,8 @@ def run_sex_pipeline(sex_label: str) -> None:
         predictions.loc[test_mask, TIME_COL],
         predictions.loc[test_mask, "gbsa_risk_score"],
     )[0]
-    print(f"  [{sex_label}] test-set C-index (informal check, not the formal §8 evaluation): "
-          f"RSF = {test_rsf_cindex:.4f}, GBSA = {test_gbsa_cindex:.4f}")
+    print(f"  [{sex_label}] test-set C-index (informal check, not the formal Stage 7 "
+          f"evaluation): RSF = {test_rsf_cindex:.4f}, GBSA = {test_gbsa_cindex:.4f}")
 
     out_path = RESULTS_TABLES / f"stage5_ml_model_predictions_{sex_label}.csv"
     predictions.to_csv(out_path, index=False)

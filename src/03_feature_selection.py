@@ -1,18 +1,18 @@
-"""Stage 3 — feature selection (CLAUDE.md §5): multicollinearity screening, per-sex LASSO,
-QRISK3 cross-reference. Run independently per sex, training-fold only for fitting, validation
-fold only for tuning — never test data.
+"""Stage 3 — feature selection: multicollinearity screening, per-sex LASSO, QRISK3
+cross-reference. Run independently per sex, training-fold only for fitting, validation fold
+only for tuning — never test data.
 
-**Predictor-count discrepancy, flagged and resolved with the user on 2026-08-20 (§14):**
-CLAUDE.md repeatedly says "14 predictors" (§4, §5.1), but the dataset only has 12 columns
-usable as survival-model predictors — the "14" figure only works by also counting
+**Predictor-count discrepancy, flagged and resolved with the user on 2026-08-20:** the spec
+repeatedly says "14 predictors", but the dataset only has 12 columns usable as
+survival-model predictors — the "14" figure only works by also counting
 `time_to_event_or_censoring` and `heart_attack_or_stroke_occurred` (the survival outcome
 itself) as if they were predictors. Treated here as a spec wording slip; feature selection
 runs on the 12 actual clinical/physiological columns.
 
 LASSO: L1-penalised Cox partial-likelihood LASSO (Tibshirani, 1996), fitted via
 `sksurv.linear_model.CoxnetSurvivalAnalysis` (Pölsterl, 2020) with `l1_ratio=1.0` for pure L1.
-QRISK3 cross-reference set is the simplified rebuild's predictor list from CLAUDE.md §7,
-itself derived from Hippisley-Cox, Coupland and Brindle (2017).
+QRISK3 cross-reference set is the simplified rebuild's predictor list (see
+04_baselines.py), itself derived from Hippisley-Cox, Coupland and Brindle (2017).
 """
 
 import sys
@@ -35,7 +35,7 @@ EVENT_COL = "heart_attack_or_stroke_occurred"
 TIME_COL = "time_to_event_or_censoring"
 
 # The 12 predictors actually usable for survival modelling — patient_id (identifier), gender
-# (used only to stratify cohorts, §0.4), and the two outcome columns are excluded. See module
+# (used only to stratify cohorts), and the two outcome columns are excluded. See module
 # docstring re: the "14 predictors" spec discrepancy.
 CONTINUOUS = ["age", "body_mass_index", "systolic_blood_pressure", "forced_expiratory_volume_1"]
 BINARY = [
@@ -45,11 +45,11 @@ BINARY = [
 ]
 PREDICTORS = CONTINUOUS + BINARY
 
-# Predictors present in this project's simplified QRISK3-style rebuild (CLAUDE.md §7), used
-# as the multicollinearity tie-break and the §5.3 cross-reference set. COPD and FEV1 are the
-# two columns in this dataset that are *not* part of QRISK3's original predictor set
+# Predictors present in this project's simplified QRISK3-style rebuild, used as the
+# multicollinearity tie-break and the QRISK3 cross-reference set. COPD and FEV1 are the two
+# columns in this dataset that are *not* part of QRISK3's original predictor set
 # (Hippisley-Cox, Coupland and Brindle, 2017) — they are the deliberate noise/extra variables
-# named in §4.
+# in the dataset.
 QRISK3_BASIS = {
     "age", "smoker", "systolic_blood_pressure", "diabetes",
     "family_history_of_cardiovascular_disease", "chronic_kidney_disease",
@@ -118,11 +118,11 @@ def resolve_tie_by_complete_case_correlation(a: str, b: str, full_r: float,
 
 
 def screen_multicollinearity(train_df: pd.DataFrame, raw_missing: pd.DataFrame, sex_label: str):
-    """§5.1: Pearson (continuous-continuous) and point-biserial (continuous-binary)
-    correlation screening on the training fold only. Flags |r| > 0.80 as redundant and drops
-    the member with weaker QRISK3 clinical basis (§7). Ties (both or neither in the QRISK3
-    basis) fall back to the complete-case correlation tie-break above, per the user's
-    2026-08-20 instruction — not silently reconciled by any default rule."""
+    """Pearson (continuous-continuous) and point-biserial (continuous-binary) correlation
+    screening on the training fold only. Flags |r| > 0.80 as redundant and drops the member
+    with weaker QRISK3 clinical basis. Ties (both or neither in the QRISK3 basis) fall back
+    to the complete-case correlation tie-break above, per the user's 2026-08-20 instruction —
+    not silently reconciled by any default rule."""
     rows = []
     for i, a in enumerate(CONTINUOUS):
         for b in CONTINUOUS[i + 1:]:
@@ -162,9 +162,9 @@ def screen_multicollinearity(train_df: pd.DataFrame, raw_missing: pd.DataFrame, 
 
 def select_lasso_features(train_df: pd.DataFrame, val_df: pd.DataFrame, candidates: list,
                            sex_label: str):
-    """§5.2: L1-penalised Cox partial-likelihood LASSO (Tibshirani, 1996), fitted on the
-    training fold, penalty strength tuned on the validation fold by C-index — never the
-    training set, never the test set."""
+    """L1-penalised Cox partial-likelihood LASSO (Tibshirani, 1996), fitted on the training
+    fold, penalty strength tuned on the validation fold by C-index — never the training set,
+    never the test set."""
     X_train = train_df[candidates].astype(float)
     y_train = Surv.from_dataframe(EVENT_COL, TIME_COL, train_df)
     X_val = val_df[candidates].astype(float)
@@ -193,7 +193,7 @@ def select_lasso_features(train_df: pd.DataFrame, val_df: pd.DataFrame, candidat
 
 
 def cross_reference_qrisk3(selected: list, candidates: list, sex_label: str):
-    """§5.3: flag disagreements between the LASSO-surviving set and the QRISK3 predictor set
+    """Flag disagreements between the LASSO-surviving set and the QRISK3 predictor set
     explicitly — not silently reconciled."""
     disagreements = []
     for p in candidates:

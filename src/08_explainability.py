@@ -1,24 +1,24 @@
-"""Stage 8 — explainability (CLAUDE.md §9): SHAP (Lundberg and Lee, 2017) and LIME (Ribeiro,
-Singh and Guestrin, 2016) on all four ML/DL models (RSF, GBSA, DeepSurv, DeepHit), per sex,
-with stability testing across resampled training folds (§9.4) before any ranking is treated
-as a robust claim.
+"""Stage 8 — explainability: SHAP (Lundberg and Lee, 2017) and LIME (Ribeiro, Singh and
+Guestrin, 2016) on all four ML/DL models (RSF, GBSA, DeepSurv, DeepHit), per sex, with
+stability testing across resampled training folds before any ranking is treated as a robust
+claim.
 
 Each of the four models is refit here using the exact best hyperparameters already found and
 recorded in Stages 5-6 (no re-tuning — SHAP/LIME need a live model object with a callable
 predict function, which Stages 5-6 didn't persist, only predictions). `random_state=42` for
-the main fit; 2 further bootstrap resamples of the training fold (seeds 43, 44) for §9.4's
+the main fit; 2 further bootstrap resamples of the training fold (seeds 43, 44) for the
 stability test, refit with the *same* fixed hyperparameters.
 
-**SHAP explainer choice, verified empirically before committing (§14):** `shap.TreeExplainer`
-does not support `sksurv` models (`InvalidModelError`, confirmed directly). Used
-`shap.Explainer` with each model's `.predict()` as a black-box function instead — works
-uniformly across all four heterogeneous model types (tree-based and neural). With only 9-10
-features, SHAP automatically selects its exact-computation explainer (not the slow Kernel
-approximation), confirmed via timing test: ~0.09-0.15s/sample regardless of model type.
-GBSA's ~6-minute fit time (already characterised in Stage 5) is the only real cost here — SHAP
-explanation itself is fast for every model.
+**SHAP explainer choice, verified empirically before committing:** `shap.TreeExplainer` does
+not support `sksurv` models (`InvalidModelError`, confirmed directly). Used `shap.Explainer`
+with each model's `.predict()` as a black-box function instead — works uniformly across all
+four heterogeneous model types (tree-based and neural). With only 9-10 features, SHAP
+automatically selects its exact-computation explainer (not the slow Kernel approximation),
+confirmed via timing test: ~0.09-0.15s/sample regardless of model type. GBSA's ~6-minute fit
+time (already characterised in Stage 5) is the only real cost here — SHAP explanation itself
+is fast for every model.
 
-**BMI dependence plot, resolved before coding (§14):** §9 asks for dependence plots on "age,
+**BMI dependence plot, resolved before coding:** the spec asks for dependence plots on "age,
 systolic BP, BMI," but BMI was dropped by Stage 3's LASSO for *both* sexes — it is not an
 input to any of the four models. Only age and systolic BP remain as continuous predictors;
 dependence plots cover those two, per the user's decision. This is a direct, already-logged
