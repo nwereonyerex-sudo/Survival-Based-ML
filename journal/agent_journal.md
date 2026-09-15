@@ -23,6 +23,7 @@ questions, and anything unexpected encountered — plus the sanity check that cl
 10. [Stage 8 — Explainability (SHAP, LIME, stability testing)](#10-stage-8--explainability-shap-lime-stability-testing)
 11. [Results dashboard (GitHub Pages)](#11-results-dashboard-github-pages)
 12. [Interactive QRISK3-style calculator (dashboard addition)](#12-interactive-qrisk3-style-calculator-dashboard-addition)
+13. [Full pipeline reference notebook](#13-full-pipeline-reference-notebook)
 
 ---
 
@@ -704,5 +705,65 @@ sign-off per §15.1 and §15.3's merge gate, requested but not yet given as of t
 
 ---
 
+## 13. Full pipeline reference notebook
+
+**Date:** 2026-09-15 · **Branch:** `session/2026-09-15-full-pipeline-notebook`
+
+**What was built:** the user asked where to get "all the coding joined together and the
+images also shown" for the whole process — a single place to review every stage's code next
+to what it produced, rather than switching between nine separate `.py` files and the
+`results/` directory. Added `src/10_full_pipeline_reference.ipynb`: one notebook, sections
+for Stages 1–9 in order, each with a short blurb (drawn from that stage's own docstring, so
+no new citations were introduced), the stage's full script pasted verbatim as a code cell,
+and — for the stages that actually produce one — the figures/tables that stage wrote to
+`results/`, embedded directly (images as base64, tables as real rows read from the committed
+CSVs). Kept inside `src/`, numbered as the next addition after `09_build_dashboard.py`, per
+the user's explicit instruction, rather than in a separate top-level `notebooks/` folder.
+Not a new pipeline stage; like §11/§12, it sits beyond the original §11 8-stage layout and is
+documented here rather than folded into that list.
+
+This is not a new pipeline stage in the CLAUDE.md §10/§11 sense — no modelling decision was
+made, no metric was computed, nothing in `results/` changed. It is documentation tooling, so
+the Planner→Developer→Review→Test cycle doesn't apply in its usual form; the closest
+equivalent checks below stand in for it.
+
+**Explicit choice: reference only, not re-executed.** The user chose this over re-running
+the real pipeline live in the notebook (which would include DeepSurv/DeepHit training and
+SHAP/LIME — an expensive job under §15.1). Code cells have `execution_count: null` and no
+outputs; nothing is presented as if it were run in this notebook. Images/tables are the real
+artefacts already on `main` from prior stage runs, not regenerated or hand-edited.
+
+**Built with a generator script, not by hand.** Hand-typing ~2,600 lines of source into
+notebook JSON risks transcription drift from the real files. Instead wrote a small
+throwaway Python script (run once from the repo root, not committed) that reads each
+`src/*.py` file and the relevant `results/figures`/`results/tables` artefacts directly and
+assembles valid nbformat 4.5 JSON. `pandas.DataFrame.to_markdown` was unavailable
+(`tabulate` isn't in this project's `.venv` — not installed, per §15.1's "ask before
+installing a package," since it wasn't needed) so table cells use a small hand-rolled
+markdown-table formatter instead.
+
+**Test/sanity check (§10.4 equivalent):** loaded the written `.ipynb` back with `json.load`
+and confirmed valid `nbformat`/`nbformat_minor`, the expected cell count and cell-type
+sequence, and non-trivial content length for every code/image/table cell (i.e. no cell
+silently ended up empty).
+
+**Anomaly encountered and resolved — not a project/data finding, but recorded per §0.7's
+"report anomalies honestly" spirit:** partway through this session, before this notebook
+work was committed anywhere, the tracked `journal/` directory was found renamed to a bare
+`1/` on disk (`git status` showed `journal/agent_journal.md` as deleted and `1/` as
+untracked). No `mv`/`rm` targeting `journal` appears anywhere in this session's own command
+history. Diffed `1/agent_journal.md` against `git show HEAD:journal/agent_journal.md` before
+touching anything — byte-identical, so no content was lost or altered, only the path. Fixed
+with `mv ./1 ./journal` and re-diffed clean against `HEAD` to confirm. Flagged to the user
+directly when found, per the "investigate before deleting/overwriting" and "flag suspected
+anomalies" guidance, and reported separately as tooling feedback. No project/methodology
+impact — noted here only so a future session isn't puzzled by a gap.
+
+**Open item:** pushing this branch / merging to `main` — held pending explicit user
+sign-off per §15.1 and §15.3's merge gate.
+
+---
+
 *End of journal. Stage 8 was the last modelling pipeline stage; the results dashboard (§11)
-is live, and §12 above adds an interactive calculator to it, pending merge.*
+is live with an interactive calculator (§12), and §13 above adds a joined-together
+code+figures reference notebook, pending merge.*
