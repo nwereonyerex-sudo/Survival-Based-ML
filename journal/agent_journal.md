@@ -25,6 +25,7 @@ questions, and anything unexpected encountered — plus the sanity check that cl
 12. [Interactive QRISK3-style calculator (dashboard addition)](#12-interactive-qrisk3-style-calculator-dashboard-addition)
 13. [Full pipeline reference notebook](#13-full-pipeline-reference-notebook)
 14. [Trim spec section-pointers from code comments](#14-trim-spec-section-pointers-from-code-comments)
+15. [Project README](#15-project-readme)
 
 ---
 
@@ -814,7 +815,33 @@ sign-off per §15.1 and §15.3's merge gate.
 
 ---
 
+## 15. Project README
+
+**Date:** 2026-10-03 · **Branch:** `session/2026-10-03-readme`
+
+**What was built:** a top-level `README.md` for GitHub visitors, at the user's request, so
+people can see what problem the project addresses. It covers the research problem and
+questions, the dataset (with its citation and an ethics statement), the pipeline stages, a
+results table, the key findings, run instructions, the repository layout and key references.
+It contains no CLAUDE.md pointers or assistant attribution.
+
+**Accuracy check:** every number in the README's results table was taken from
+`results/tables/stage7_evaluation_summary.csv` and checked against it. The findings bullets
+restate the corrected Stage 7 findings (§9, including the 2026-08-21 correction) and the Stage
+8 stability counts (§10) without adding any new claims. QRISK3-style's Brier score is
+labelled as single-timepoint, as it is in the results table.
+
+**Noticed, not acted on:** an untracked `src/10_full_pipeline_reference.ipynb` is present in
+the working tree. It looks like a leftover copy from §14's rename to
+`src/10_full_pipeline.ipynb`. It was left out of this commit and has not been deleted.
+
+**Test/sanity check:** no code changed, so there are no scripts to run. Checked that the
+README's relative links (`journal/`, `results/figures/`, `results/tables/`, the dataset CSV)
+resolve to tracked paths.
+
+---
+
 *End of journal. Stage 8 was the last modelling pipeline stage; the results dashboard (§11)
 is live with an interactive calculator (§12); §13 added a joined-together code+figures
 notebook; §14 trimmed spec section-pointers from the `src/` comments and renamed that
-notebook to `src/10_full_pipeline.ipynb` — pending merge.*
+notebook to `src/10_full_pipeline.ipynb`; §15 added the project README.*
