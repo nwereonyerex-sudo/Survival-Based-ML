@@ -833,7 +833,11 @@ labelled as single-timepoint, as it is in the results table.
 
 **Noticed, not acted on:** an untracked `src/10_full_pipeline_reference.ipynb` is present in
 the working tree. It looks like a leftover copy from §14's rename to
-`src/10_full_pipeline.ipynb`. It was left out of this commit and has not been deleted.
+`src/10_full_pipeline.ipynb`. It was left out of this commit. Before deleting it, its cell
+sources were compared against the committed notebook. The differences found were only the
+old `CLAUDE.md §` pointers that §14 removed and the old "Reference" title, so nothing unique
+was in it. It was then deleted at the user's request. It was never tracked, so git has no
+copy of it.
 
 **Test/sanity check:** no code changed, so there are no scripts to run. Checked that the
 README's relative links (`journal/`, `results/figures/`, `results/tables/`, the dataset CSV)
